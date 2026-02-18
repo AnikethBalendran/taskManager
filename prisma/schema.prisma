@@ -1,0 +1,71 @@
+// Prisma schema for Task Management System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  SUPERVISOR
+  USER
+}
+
+enum TaskStatus {
+  OPEN
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  assignedTasks    Task[] @relation("AssignedTo")
+  createdTasks     Task[] @relation("CreatedBy")
+
+  @@map("users")
+}
+
+model Task {
+  id            String        @id @default(uuid())
+  title         String
+  description   String
+  assignedToId  String        @map("assigned_to")
+  assignedById  String        @map("assigned_by")
+  deadline      DateTime
+  requiresProof Boolean       @default(false) @map("requires_proof")
+  status        TaskStatus    @default(OPEN)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  assignedTo    User            @relation("AssignedTo", fields: [assignedToId], references: [id])
+  assignedBy    User            @relation("CreatedBy", fields: [assignedById], references: [id])
+  submission    TaskSubmission?
+
+  @@map("tasks")
+}
+
+model TaskSubmission {
+  id             String   @id @default(uuid())
+  taskId         String   @unique @map("task_id")
+  proofImagePath String?  @map("proof_image_path")
+  submittedAt    DateTime @default(now()) @map("submitted_at")
+
+  // Relations
+  task           Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("task_submissions")
+}
+
