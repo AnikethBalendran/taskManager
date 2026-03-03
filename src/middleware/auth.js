@@ -46,6 +46,9 @@ const authenticate = async (req, res, next) => {
 /**
  * Middleware to check if user has required role
  * Supports multiple roles: authorize('ADMIN', 'SUPERVISOR')
+ * 
+ * Fix: Explicitly handles variable number of allowed roles using rest parameters
+ * Added debug logging to diagnose permission issues
  */
 const authorize = (...allowedRoles) => {
   return (req, res, next) => {
@@ -53,10 +56,21 @@ const authorize = (...allowedRoles) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
+    // Debug: Log role check for troubleshooting
+    console.log(`[AUTHORIZE] User role: ${req.user.role}, Allowed roles: [${allowedRoles.join(', ')}]`);
+
+    // Check if user's role is in the allowed roles array
+    // allowedRoles is an array created from rest parameters: ['ADMIN', 'SUPERVISOR']
+    // Ensure exact string match (case-sensitive as per Prisma enum)
     if (!allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'Insufficient permissions' });
+      console.log(`[AUTHORIZE] Access denied for role: ${req.user.role}`);
+      return res.status(403).json({ 
+        error: 'Insufficient permissions',
+        details: `Required roles: ${allowedRoles.join(' or ')}, User role: ${req.user.role}`
+      });
     }
 
+    console.log(`[AUTHORIZE] Access granted for role: ${req.user.role}`);
     next();
   };
 };

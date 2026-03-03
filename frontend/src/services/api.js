@@ -42,11 +42,28 @@ export const getUsers = async () => {
   return response.data;
 };
 
+export const updateUser = async (userId, email, role) => {
+  const response = await axios.put(`${API_BASE_URL}/users/${userId}`, {
+    email,
+    role
+  });
+  return response.data;
+};
+
+export const getUserTasks = async (userId) => {
+  const response = await axios.get(`${API_BASE_URL}/users/${userId}/tasks`);
+  return response.data;
+};
+
 /**
  * Tasks API
  */
 export const createTask = async (taskData) => {
-  const response = await axios.post(`${API_BASE_URL}/tasks`, taskData);
+  // Fix: Explicitly include credentials to ensure cookies (JWT) are sent
+  // This is critical for authentication - cookies contain the JWT token
+  const response = await axios.post(`${API_BASE_URL}/tasks`, taskData, {
+    withCredentials: true // Explicitly send cookies
+  });
   return response.data;
 };
 

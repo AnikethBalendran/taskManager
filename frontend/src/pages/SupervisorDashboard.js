@@ -164,15 +164,18 @@ const SupervisorDashboard = ({ user, onLogout }) => {
                 />
               </div>
               <div className="form-group">
-                <label>
+                {/* Fix: Use checkbox-label class to override form-group label block display */}
+                {/* This keeps checkbox and label together on the left, not stretched */}
+                <label className="checkbox-label">
                   <input
                     type="checkbox"
                     checked={formData.requiresProof}
                     onChange={(e) =>
                       setFormData({ ...formData, requiresProof: e.target.checked })
                     }
+                    style={{ margin: 0, cursor: 'pointer', flexShrink: 0 }}
                   />
-                  Requires Proof Image
+                  <span>Requires Proof Image</span>
                 </label>
               </div>
               {error && <div className="error">{error}</div>}

@@ -55,10 +55,18 @@ const upload = multer({
 
 /**
  * POST /tasks
- * Create a new task (Supervisor only)
+ * Create a new task (Supervisor or Admin)
+ * Admin can assign tasks to SUPERVISOR or USER roles
+ * Supervisor can assign tasks to USER role only
+ * 
+ * Fix: Explicitly allow both ADMIN and SUPERVISOR roles using authorize middleware
+ * Added debug logging to verify role is correctly set
  */
-router.post('/', authorize('SUPERVISOR'), async (req, res) => {
+router.post('/', authorize('ADMIN', 'SUPERVISOR'), async (req, res) => {
   try {
+    // Debug: Log user info for troubleshooting
+    console.log(`[POST /tasks] User: ${req.user.email}, Role: ${req.user.role}`);
+    
     const { title, description, assignedToId, deadline, requiresProof } = req.body;
 
     if (!title || !description || !assignedToId || !deadline) {
@@ -72,6 +80,15 @@ router.post('/', authorize('SUPERVISOR'), async (req, res) => {
 
     if (!assignedUser) {
       return res.status(400).json({ error: 'Assigned user not found' });
+    }
+
+    // Role-based validation: Supervisor can only assign to USER, Admin can assign to SUPERVISOR or USER
+    if (req.user.role === 'SUPERVISOR' && assignedUser.role !== 'USER') {
+      return res.status(403).json({ error: 'Supervisors can only assign tasks to users' });
+    }
+
+    if (req.user.role === 'ADMIN' && !['SUPERVISOR', 'USER'].includes(assignedUser.role)) {
+      return res.status(403).json({ error: 'Admin can only assign tasks to supervisors or users' });
     }
 
     // Create task
