@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { createUser, getUsers, updateUser, getUserTasks, createTask } from '../services/api';
+import { createUser, getUsers, updateUser, getUserTasks, createTask, approveTask, rejectTask } from '../services/api';
 import './Dashboard.css';
 
 const AdminDashboard = ({ user, onLogout }) => {
@@ -123,6 +123,34 @@ const AdminDashboard = ({ user, onLogout }) => {
       console.error('Create task error:', err.response?.data || err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleApproveTask = async (taskId) => {
+    try {
+      setError('');
+      setSuccess('');
+      await approveTask(taskId);
+      setSuccess('Task approved successfully');
+      if (selectedUserId) {
+        await handleViewUserTasks(selectedUserId);
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to approve task');
+    }
+  };
+
+  const handleRejectTask = async (taskId) => {
+    try {
+      setError('');
+      setSuccess('');
+      await rejectTask(taskId);
+      setSuccess('Task rejected successfully');
+      if (selectedUserId) {
+        await handleViewUserTasks(selectedUserId);
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to reject task');
     }
   };
 
@@ -430,6 +458,8 @@ const AdminDashboard = ({ user, onLogout }) => {
                     <th>Deadline</th>
                     <th>Status</th>
                     <th>Requires Proof</th>
+                    <th>Proof</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -440,6 +470,39 @@ const AdminDashboard = ({ user, onLogout }) => {
                       <td>{new Date(task.deadline).toLocaleString()}</td>
                       <td>{getStatusBadge(task.status)}</td>
                       <td>{task.requiresProof ? 'Yes' : 'No'}</td>
+                      <td>
+                        {task.submission?.proofImagePath ? (
+                          <a
+                            href={`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/${task.submission.proofImagePath}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            View Proof
+                          </a>
+                        ) : (
+                          '-'
+                        )}
+                      </td>
+                      <td>
+                        {task.status === 'SUBMITTED' && (
+                          <>
+                            <button
+                              className="btn btn-success"
+                              style={{ fontSize: '12px', padding: '5px 8px', marginRight: '4px' }}
+                              onClick={() => handleApproveTask(task.id)}
+                            >
+                              Approve
+                            </button>
+                            <button
+                              className="btn btn-danger"
+                              style={{ fontSize: '12px', padding: '5px 8px' }}
+                              onClick={() => handleRejectTask(task.id)}
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -284,9 +284,9 @@ router.post('/:id/submit', authorize('USER'), upload.single('proofImage'), async
 
 /**
  * POST /tasks/:id/approve
- * Approve a submitted task (Supervisor only)
+ * Approve a submitted task (Admin or Supervisor)
  */
-router.post('/:id/approve', authorize('SUPERVISOR'), async (req, res) => {
+router.post('/:id/approve', authorize('ADMIN', 'SUPERVISOR'), async (req, res) => {
   try {
     const taskId = req.params.id;
 
@@ -343,9 +343,9 @@ router.post('/:id/approve', authorize('SUPERVISOR'), async (req, res) => {
 
 /**
  * POST /tasks/:id/reject
- * Reject a submitted task (Supervisor only)
+ * Reject a submitted task (Admin or Supervisor)
  */
-router.post('/:id/reject', authorize('SUPERVISOR'), async (req, res) => {
+router.post('/:id/reject', authorize('ADMIN', 'SUPERVISOR'), async (req, res) => {
   try {
     const taskId = req.params.id;
 
