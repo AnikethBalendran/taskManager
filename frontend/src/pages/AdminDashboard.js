@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { createUser, getUsers, updateUser, getUserTasks, createTask, approveTask, rejectTask } from '../services/api';
-import './Dashboard.css';
 
 const AdminDashboard = ({ user, onLogout }) => {
   const [users, setUsers] = useState([]);
@@ -162,43 +161,51 @@ const AdminDashboard = ({ user, onLogout }) => {
   // Filter users for task assignment (SUPERVISOR and USER only)
   const assignableUsers = users.filter(u => u.role === 'SUPERVISOR' || u.role === 'USER');
 
+  const inputClass = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
+  const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
+  const btnPrimary = 'px-4 py-2 rounded-lg font-medium text-white bg-primary-500 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-60 transition-colors';
+  const btnSecondary = 'px-4 py-2 rounded-lg font-medium text-slate-700 bg-slate-200 hover:bg-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 transition-colors';
+  const btnSuccess = 'px-4 py-2 rounded-lg font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 transition-colors';
+  const btnDanger = 'px-4 py-2 rounded-lg font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors';
+
   return (
-    <div className="dashboard">
-      <header className="dashboard-header">
-        <h1>Admin Dashboard</h1>
-        <div className="header-actions">
-          <span>Welcome, {user.email}</span>
-          <button onClick={onLogout} className="btn btn-secondary">
-            Logout
-          </button>
+    <div className="min-h-screen bg-slate-50">
+      <header className="bg-white border-b border-slate-200 shadow-sm">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <h1 className="text-xl font-semibold text-slate-800">Admin Dashboard</h1>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-slate-600">Welcome, {user.email}</span>
+              <button onClick={onLogout} className={btnSecondary}>
+                Logout
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
-      <div className="container">
-        {/* Global error/success messages */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         {error && !showCreateForm && !showCreateTaskForm && !editingUser && (
-          <div className="card" style={{ backgroundColor: '#f8d7da', border: '1px solid #f5c6cb' }}>
-            <div className="error">{error}</div>
+          <div className="mb-4 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+            {error}
           </div>
         )}
         {success && !showCreateForm && !showCreateTaskForm && !editingUser && (
-          <div className="card" style={{ backgroundColor: '#d4edda', border: '1px solid #c3e6cb' }}>
-            <div className="success">{success}</div>
+          <div className="mb-4 p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">
+            {success}
           </div>
         )}
 
-        {/* Users Section */}
-        <div className="card">
-          <div className="card-header">
-            <h2>Users</h2>
-            <div>
+        <div className="bg-white rounded-xl shadow-card border border-slate-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <h2 className="text-lg font-semibold text-slate-800">Users</h2>
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => {
                   setShowCreateTaskForm(false);
                   setShowCreateForm(!showCreateForm);
                 }}
-                className="btn btn-primary"
-                style={{ marginRight: '10px' }}
+                className={btnPrimary}
               >
                 {showCreateForm ? 'Cancel' : 'Create User'}
               </button>
@@ -207,307 +214,282 @@ const AdminDashboard = ({ user, onLogout }) => {
                   setShowCreateForm(false);
                   setShowCreateTaskForm(!showCreateTaskForm);
                 }}
-                className="btn btn-primary"
+                className={btnPrimary}
               >
                 {showCreateTaskForm ? 'Cancel' : 'Create Task'}
               </button>
             </div>
           </div>
 
-          {/* Create User Form */}
           {showCreateForm && (
-            <form onSubmit={handleUserSubmit} className="create-form">
-              <h3>Create New User</h3>
-              <div className="form-group">
-                <label>Email</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
-                  required
-                />
+            <form onSubmit={handleUserSubmit} className="p-6 bg-slate-50 border-b border-slate-200">
+              <h3 className="text-base font-semibold text-slate-800 mb-4">Create New User</h3>
+              <div className="space-y-4 max-w-md">
+                <div>
+                  <label htmlFor="create-user-email" className={labelClass}>Email</label>
+                  <input
+                    id="create-user-email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className={inputClass}
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="create-user-password" className={labelClass}>Password</label>
+                  <input
+                    id="create-user-password"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className={inputClass}
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="create-user-role" className={labelClass}>Role</label>
+                  <select
+                    id="create-user-role"
+                    value={formData.role}
+                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                    className={inputClass}
+                  >
+                    <option value="USER">User</option>
+                    <option value="SUPERVISOR">Supervisor</option>
+                    <option value="ADMIN">Admin</option>
+                  </select>
+                </div>
+                {error && <p className="text-sm text-red-600">{error}</p>}
+                {success && <p className="text-sm text-emerald-600">{success}</p>}
+                <button type="submit" className={btnPrimary} disabled={loading}>
+                  {loading ? 'Creating...' : 'Create User'}
+                </button>
               </div>
-              <div className="form-group">
-                <label>Password</label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) =>
-                    setFormData({ ...formData, password: e.target.value })
-                  }
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Role</label>
-                <select
-                  value={formData.role}
-                  onChange={(e) =>
-                    setFormData({ ...formData, role: e.target.value })
-                  }
-                >
-                  <option value="USER">User</option>
-                  <option value="SUPERVISOR">Supervisor</option>
-                  <option value="ADMIN">Admin</option>
-                </select>
-              </div>
-              {error && <div className="error">{error}</div>}
-              {success && <div className="success">{success}</div>}
-              <button type="submit" className="btn btn-primary" disabled={loading}>
-                {loading ? 'Creating...' : 'Create User'}
-              </button>
             </form>
           )}
 
-          {/* Create Task Form */}
           {showCreateTaskForm && (
-            <form onSubmit={handleCreateTask} className="create-form">
-              <h3>Create New Task</h3>
-              <div className="form-group">
-                <label>Title</label>
-                <input
-                  type="text"
-                  value={taskFormData.title}
-                  onChange={(e) =>
-                    setTaskFormData({ ...taskFormData, title: e.target.value })
-                  }
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Description</label>
-                <textarea
-                  value={taskFormData.description}
-                  onChange={(e) =>
-                    setTaskFormData({ ...taskFormData, description: e.target.value })
-                  }
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Assign To</label>
-                <select
-                  value={taskFormData.assignedToId}
-                  onChange={(e) =>
-                    setTaskFormData({ ...taskFormData, assignedToId: e.target.value })
-                  }
-                  required
-                >
-                  <option value="">Select a user or supervisor</option>
-                  {assignableUsers.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.email} ({u.role})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Deadline</label>
-                <input
-                  type="datetime-local"
-                  value={taskFormData.deadline}
-                  onChange={(e) =>
-                    setTaskFormData({ ...taskFormData, deadline: e.target.value })
-                  }
-                  required
-                />
-              </div>
-              <div className="form-group">
-                {/* Fix: Use checkbox-label class to override form-group label block display */}
-                {/* This keeps checkbox and label together on the left, not stretched */}
-                <label className="checkbox-label">
+            <form onSubmit={handleCreateTask} className="p-6 bg-slate-50 border-b border-slate-200">
+              <h3 className="text-base font-semibold text-slate-800 mb-4">Create New Task</h3>
+              <div className="space-y-4 max-w-md">
+                <div>
+                  <label htmlFor="task-title" className={labelClass}>Title</label>
+                  <input
+                    id="task-title"
+                    type="text"
+                    value={taskFormData.title}
+                    onChange={(e) => setTaskFormData({ ...taskFormData, title: e.target.value })}
+                    className={inputClass}
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="task-description" className={labelClass}>Description</label>
+                  <textarea
+                    id="task-description"
+                    value={taskFormData.description}
+                    onChange={(e) => setTaskFormData({ ...taskFormData, description: e.target.value })}
+                    className={`${inputClass} min-h-[100px] resize-y`}
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="task-assign" className={labelClass}>Assign To</label>
+                  <select
+                    id="task-assign"
+                    value={taskFormData.assignedToId}
+                    onChange={(e) => setTaskFormData({ ...taskFormData, assignedToId: e.target.value })}
+                    className={inputClass}
+                    required
+                  >
+                    <option value="">Select a user or supervisor</option>
+                    {assignableUsers.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.email} ({u.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="task-deadline" className={labelClass}>Deadline</label>
+                  <input
+                    id="task-deadline"
+                    type="datetime-local"
+                    value={taskFormData.deadline}
+                    onChange={(e) => setTaskFormData({ ...taskFormData, deadline: e.target.value })}
+                    className={inputClass}
+                    required
+                  />
+                </div>
+              <div className="mb-4">
+                <label className="flex items-center gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={taskFormData.requiresProof}
                     onChange={(e) =>
                       setTaskFormData({ ...taskFormData, requiresProof: e.target.checked })
                     }
-                    style={{ margin: 0, cursor: 'pointer', flexShrink: 0 }}
+                    className="h-4 w-4 rounded border-slate-300 text-primary-500 focus:ring-2 focus:ring-primary-500 focus:ring-offset-0 cursor-pointer"
                   />
-                  <span>Requires Proof Image</span>
+                  <span className="text-sm font-medium text-slate-700">Requires Proof Image</span>
                 </label>
               </div>
-              {error && <div className="error">{error}</div>}
-              {success && <div className="success">{success}</div>}
-              <button type="submit" className="btn btn-primary" disabled={loading}>
-                {loading ? 'Creating...' : 'Create Task'}
-              </button>
+                {error && <p className="text-sm text-red-600">{error}</p>}
+                {success && <p className="text-sm text-emerald-600">{success}</p>}
+                <button type="submit" className={btnPrimary} disabled={loading}>
+                  {loading ? 'Creating...' : 'Create Task'}
+                </button>
+              </div>
             </form>
           )}
 
-          {/* Users Table */}
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Created At</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => (
-                <tr key={u.id}>
-                  <td>
-                    {editingUser?.id === u.id ? (
-                      <input
-                        type="email"
-                        value={editingUser.email}
-                        onChange={(e) =>
-                          setEditingUser({ ...editingUser, email: e.target.value })
-                        }
-                        style={{ width: '100%', padding: '5px' }}
-                      />
-                    ) : (
-                      u.email
-                    )}
-                  </td>
-                  <td>
-                    {editingUser?.id === u.id ? (
-                      <select
-                        value={editingUser.role}
-                        onChange={(e) =>
-                          setEditingUser({ ...editingUser, role: e.target.value })
-                        }
-                        style={{ padding: '5px' }}
-                      >
-                        <option value="USER">USER</option>
-                        <option value="SUPERVISOR">SUPERVISOR</option>
-                        <option value="ADMIN">ADMIN</option>
-                      </select>
-                    ) : (
-                      u.role
-                    )}
-                  </td>
-                  <td>{new Date(u.createdAt).toLocaleString()}</td>
-                  <td>
-                    {editingUser?.id === u.id ? (
-                      <>
-                        <button
-                          onClick={handleUpdateUser}
-                          className="btn btn-success"
-                          style={{ fontSize: '12px', padding: '5px 10px', marginRight: '5px' }}
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={() => {
-                            setEditingUser(null);
-                            setError('');
-                            setSuccess('');
-                          }}
-                          className="btn btn-secondary"
-                          style={{ fontSize: '12px', padding: '5px 10px' }}
-                        >
-                          Cancel
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => handleEditUser({ ...u })}
-                          className="btn btn-primary"
-                          style={{ fontSize: '12px', padding: '5px 10px', marginRight: '5px' }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleViewUserTasks(u.id)}
-                          className="btn btn-secondary"
-                          style={{ fontSize: '12px', padding: '5px 10px' }}
-                        >
-                          View Tasks
-                        </button>
-                      </>
-                    )}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50">
+                  <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Email</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Role</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Created At</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {users.map((u) => (
+                  <tr key={u.id} className="border-b border-slate-100 hover:bg-slate-50/50">
+                    <td className="px-6 py-3 text-sm text-slate-800">
+                      {editingUser?.id === u.id ? (
+                        <input
+                          type="email"
+                          value={editingUser.email}
+                          onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
+                          className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        />
+                      ) : (
+                        u.email
+                      )}
+                    </td>
+                    <td className="px-6 py-3 text-sm text-slate-800">
+                      {editingUser?.id === u.id ? (
+                        <select
+                          value={editingUser.role}
+                          onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
+                          className="px-2 py-1.5 text-sm border border-slate-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        >
+                          <option value="USER">USER</option>
+                          <option value="SUPERVISOR">SUPERVISOR</option>
+                          <option value="ADMIN">ADMIN</option>
+                        </select>
+                      ) : (
+                        u.role
+                      )}
+                    </td>
+                    <td className="px-6 py-3 text-sm text-slate-600">{new Date(u.createdAt).toLocaleString()}</td>
+                    <td className="px-6 py-3">
+                      {editingUser?.id === u.id ? (
+                        <div className="flex gap-2">
+                          <button type="button" onClick={handleUpdateUser} className={btnSuccess}>
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setEditingUser(null); setError(''); setSuccess(''); }}
+                            className={btnSecondary}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => handleEditUser({ ...u })} className={btnPrimary}>
+                            Edit
+                          </button>
+                          <button type="button" onClick={() => handleViewUserTasks(u.id)} className={btnSecondary}>
+                            View Tasks
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        {/* User Tasks Section */}
         {selectedUserId && (
-          <div className="card">
-            <div className="card-header">
-              <h2>
+          <div className="mt-6 bg-white rounded-xl shadow-card border border-slate-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <h2 className="text-lg font-semibold text-slate-800">
                 Active Tasks for {users.find(u => u.id === selectedUserId)?.email}
               </h2>
               <button
-                onClick={() => {
-                  setSelectedUserId(null);
-                  setUserTasks([]);
-                }}
-                className="btn btn-secondary"
+                type="button"
+                onClick={() => { setSelectedUserId(null); setUserTasks([]); }}
+                className={btnSecondary}
               >
                 Close
               </button>
             </div>
-            {error && <div className="error">{error}</div>}
-            {userTasks.length === 0 ? (
-              <p>No active tasks found for this user.</p>
-            ) : (
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Title</th>
-                    <th>Description</th>
-                    <th>Deadline</th>
-                    <th>Status</th>
-                    <th>Requires Proof</th>
-                    <th>Proof</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {userTasks.map((task) => (
-                    <tr key={task.id}>
-                      <td>{task.title}</td>
-                      <td>{task.description}</td>
-                      <td>{new Date(task.deadline).toLocaleString()}</td>
-                      <td>{getStatusBadge(task.status)}</td>
-                      <td>{task.requiresProof ? 'Yes' : 'No'}</td>
-                      <td>
-                        {task.submission?.proofImagePath ? (
-                          <a
-                            href={`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/${task.submission.proofImagePath}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            View Proof
-                          </a>
-                        ) : (
-                          '-'
-                        )}
-                      </td>
-                      <td>
-                        {task.status === 'SUBMITTED' && (
-                          <>
-                            <button
-                              className="btn btn-success"
-                              style={{ fontSize: '12px', padding: '5px 8px', marginRight: '4px' }}
-                              onClick={() => handleApproveTask(task.id)}
-                            >
-                              Approve
-                            </button>
-                            <button
-                              className="btn btn-danger"
-                              style={{ fontSize: '12px', padding: '5px 8px' }}
-                              onClick={() => handleRejectTask(task.id)}
-                            >
-                              Reject
-                            </button>
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            <div className="p-6">
+              {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+              {userTasks.length === 0 ? (
+                <p className="text-slate-600">No active tasks found for this user.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50">
+                        <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Title</th>
+                        <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Description</th>
+                        <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Deadline</th>
+                        <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Requires Proof</th>
+                        <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Proof</th>
+                        <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {userTasks.map((task) => (
+                        <tr key={task.id} className="border-b border-slate-100 hover:bg-slate-50/50">
+                          <td className="px-6 py-3 text-sm text-slate-800">{task.title}</td>
+                          <td className="px-6 py-3 text-sm text-slate-600">{task.description}</td>
+                          <td className="px-6 py-3 text-sm text-slate-600">{new Date(task.deadline).toLocaleString()}</td>
+                          <td className="px-6 py-3">{getStatusBadge(task.status)}</td>
+                          <td className="px-6 py-3 text-sm text-slate-600">{task.requiresProof ? 'Yes' : 'No'}</td>
+                          <td className="px-6 py-3 text-sm">
+                            {task.submission?.proofImagePath ? (
+                              <a
+                                href={`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/${task.submission.proofImagePath}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary-500 hover:underline"
+                              >
+                                View Proof
+                              </a>
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-3">
+                            {task.status === 'SUBMITTED' && (
+                              <div className="flex gap-2">
+                                <button type="button" className={btnSuccess} onClick={() => handleApproveTask(task.id)}>
+                                  Approve
+                                </button>
+                                <button type="button" className={btnDanger} onClick={() => handleRejectTask(task.id)}>
+                                  Reject
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

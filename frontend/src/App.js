@@ -42,7 +42,11 @@ function App() {
   };
 
   if (loading) {
-    return <div className="container">Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-slate-600 font-medium">Loading...</div>
+      </div>
+    );
   }
 
   return (
