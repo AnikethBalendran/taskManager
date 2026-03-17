@@ -23,7 +23,6 @@ const AdminSummaryPage = ({ user, onLogout }) => {
     if (from && to) {
       loadSummary();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [from, to]);
 
   const loadSummary = async () => {
