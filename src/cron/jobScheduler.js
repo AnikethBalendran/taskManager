@@ -13,14 +13,14 @@ const checkUpcomingDeadlines = async () => {
     const now = new Date();
     const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-    // Find tasks that:
-    // 1. Are not yet approved
-    // 2. Have deadline within 24 hours
-    // 3. Deadline is in the future
     const tasks = await prisma.task.findMany({
       where: {
+        archived: false,
         status: {
-          in: ['OPEN', 'SUBMITTED', 'REJECTED']
+          in: ['PENDING', 'IN_PROGRESS', 'COMPLETED']
+        },
+        approvalStatus: {
+          not: 'APPROVED'
         },
         deadline: {
           gte: now,

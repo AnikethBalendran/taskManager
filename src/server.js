@@ -20,10 +20,12 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const taskRoutes = require('./routes/tasks');
+const attachmentRoutes = require('./routes/attachments');
 
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/tasks', taskRoutes);
+app.use('/attachments', attachmentRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

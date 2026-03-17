@@ -4,6 +4,8 @@ import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
 import SupervisorDashboard from './pages/SupervisorDashboard';
 import UserDashboard from './pages/UserDashboard';
+import TaskDetailPage from './pages/TaskDetailPage';
+import AdminSummaryPage from './pages/AdminSummaryPage';
 import { getCurrentUser } from './services/api';
 
 function App() {
@@ -62,6 +64,16 @@ function App() {
           path="/admin"
           element={
             user?.role === 'ADMIN' ? (
+              <AdminSummaryPage user={user} onLogout={handleLogout} />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/admin/manage"
+          element={
+            user?.role === 'ADMIN' ? (
               <AdminDashboard user={user} onLogout={handleLogout} />
             ) : (
               <Navigate to="/login" replace />
@@ -87,6 +99,10 @@ function App() {
               <Navigate to="/login" replace />
             )
           }
+        />
+        <Route
+          path="/tasks/:id"
+          element={user ? <TaskDetailPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />}
         />
         <Route
           path="/"

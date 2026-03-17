@@ -13,16 +13,39 @@
   .status-badge {
     @apply inline-block px-2.5 py-0.5 rounded-md text-xs font-medium;
   }
-  .status-open {
+  .status-open,
+  .status-pending {
     @apply bg-amber-100 text-amber-800;
   }
-  .status-submitted {
+  .status-submitted,
+  .status-in_progress {
     @apply bg-sky-100 text-sky-800;
   }
-  .status-approved {
+  .status-approved,
+  .status-completed {
     @apply bg-emerald-100 text-emerald-800;
   }
   .status-rejected {
+    @apply bg-red-100 text-red-800;
+  }
+
+  .badge-overdue {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700;
+  }
+
+  .badge-approval {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold;
+  }
+  .badge-approval-none {
+    @apply bg-slate-100 text-slate-700;
+  }
+  .badge-approval-pending {
+    @apply bg-amber-100 text-amber-800;
+  }
+  .badge-approval-approved {
+    @apply bg-emerald-100 text-emerald-800;
+  }
+  .badge-approval-rejected {
     @apply bg-red-100 text-red-800;
   }
 }

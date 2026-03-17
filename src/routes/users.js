@@ -106,6 +106,68 @@ router.get('/', authorize('ADMIN', 'SUPERVISOR'), async (req, res) => {
 });
 
 /**
+ * GET /users/me
+ * Get the current user's profile
+ */
+router.get('/me', async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        profilePicture: true,
+        createdAt: true
+      }
+    });
+    res.json({ user });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
+/**
+ * PUT /users/me
+ * Update the current user's profile fields
+ */
+router.put('/me', async (req, res) => {
+  try {
+    const { firstName, lastName, phone, profilePicture } = req.body;
+
+    const updateData = {};
+    if (firstName !== undefined) updateData.firstName = firstName;
+    if (lastName !== undefined) updateData.lastName = lastName;
+    if (phone !== undefined) updateData.phone = phone;
+    if (profilePicture !== undefined) updateData.profilePicture = profilePicture;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user.id },
+      data: updateData,
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        profilePicture: true,
+        createdAt: true
+      }
+    });
+
+    res.json({ user: updatedUser });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+/**
  * PUT /users/:id
  * Update user email and role (Admin only)
  */
@@ -167,7 +229,7 @@ router.put('/:id', authorize('ADMIN'), async (req, res) => {
 /**
  * GET /users/:id/tasks
  * Get active tasks for a specific user (Admin only)
- * Returns tasks with status OPEN, SUBMITTED, or REJECTED, ordered by deadline ascending
+  * Returns non-archived tasks ordered by deadline ascending
  */
 router.get('/:id/tasks', authorize('ADMIN'), async (req, res) => {
   try {
@@ -182,13 +244,10 @@ router.get('/:id/tasks', authorize('ADMIN'), async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Get active tasks (OPEN, SUBMITTED, or REJECTED) for this user
     const tasks = await prisma.task.findMany({
       where: {
         assignedToId: id,
-        status: {
-          in: ['OPEN', 'SUBMITTED', 'REJECTED']
-        }
+        archived: false
       },
       include: {
         assignedBy: {
@@ -204,7 +263,14 @@ router.get('/:id/tasks', authorize('ADMIN'), async (req, res) => {
       }
     });
 
-    res.json({ tasks });
+    // Add isOverdue flag dynamically
+    const now = new Date();
+    const tasksWithOverdue = tasks.map((task) => ({
+      ...task,
+      isOverdue: task.deadline && new Date(task.deadline) < now && task.status !== 'COMPLETED'
+    }));
+
+    res.json({ tasks: tasksWithOverdue });
   } catch (error) {
     console.error('Get user tasks error:', error);
     res.status(500).json({ error: 'Failed to fetch user tasks' });

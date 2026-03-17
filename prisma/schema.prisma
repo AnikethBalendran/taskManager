@@ -15,46 +15,93 @@ enum Role {
   USER
 }
 
-enum TaskStatus {
-  OPEN
-  SUBMITTED
-  APPROVED
-  REJECTED
-}
-
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  role         Role
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id             String   @id @default(uuid())
+  email          String   @unique
+  passwordHash   String   @map("password_hash")
+  role           Role
+  firstName      String?  @map("first_name")
+  lastName       String?  @map("last_name")
+  phone          String?
+  profilePicture String?  @map("profile_picture")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   // Relations
   assignedTasks    Task[] @relation("AssignedTo")
   createdTasks     Task[] @relation("CreatedBy")
+  taskEvents       TaskEvent[]
+  taskUpdates      TaskUpdate[]
 
   @@map("users")
 }
 
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum ApprovalStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CapexType {
+  NONE
+  CAPEX
+  REVEX
+}
+
 model Task {
-  id            String        @id @default(uuid())
-  title         String
-  description   String
-  assignedToId  String        @map("assigned_to")
-  assignedById  String        @map("assigned_by")
-  deadline      DateTime
-  requiresProof Boolean       @default(false) @map("requires_proof")
-  status        TaskStatus    @default(OPEN)
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
+  id                   String         @id @default(uuid())
+  title                String
+  description          String
+  assignedToId         String         @map("assigned_to")
+  assignedById         String         @map("assigned_by")
+  deadline             DateTime
+  requiresProof        Boolean        @default(false) @map("requires_proof")
+  status               TaskStatus     @default(PENDING)
+  approvalStatus       ApprovalStatus @default(NONE) @map("approval_status")
+  correctiveAction     String?        @map("corrective_action")
+  remarks              String?
+  expectedClosureDate  DateTime?      @map("expected_closure_date")
+  capexType            CapexType      @default(NONE) @map("capex_type")
+  capexAmount          Float?         @map("capex_amount")
+  completionDetails    String?        @map("completion_details")
+  submittedForApprovalAt DateTime?    @map("submitted_for_approval_at")
+  approvalNotes        String?        @map("approval_notes")
+  capId                String?        @unique @map("cap_id")
+  teamMembers          String[]       @default([]) @map("team_members")
+  archived             Boolean        @default(false)
+  createdAt            DateTime       @default(now()) @map("created_at")
+  updatedAt            DateTime       @updatedAt @map("updated_at")
 
   // Relations
-  assignedTo    User            @relation("AssignedTo", fields: [assignedToId], references: [id])
-  assignedBy    User            @relation("CreatedBy", fields: [assignedById], references: [id])
-  submission    TaskSubmission?
+  assignedTo          User          @relation("AssignedTo", fields: [assignedToId], references: [id])
+  assignedBy          User          @relation("CreatedBy", fields: [assignedById], references: [id])
+  submission          TaskSubmission?
+  attachments         Attachment[]
+  events              TaskEvent[]
+  updates             TaskUpdate[]
 
   @@map("tasks")
+}
+
+model TaskUpdate {
+  id        String   @id @default(uuid())
+  taskId    String   @map("task_id")
+  userId    String   @map("user_id")
+  message   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
+  @@map("task_updates")
 }
 
 model TaskSubmission {
@@ -68,4 +115,30 @@ model TaskSubmission {
 
   @@map("task_submissions")
 }
+
+model Attachment {
+  id        String   @id @default(uuid())
+  taskId    String   @map("task_id")
+  url       String
+  filename  String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("attachments")
+}
+
+model TaskEvent {
+  id        String   @id @default(uuid())
+  taskId    String   @map("task_id")
+  userId    String   @map("user_id")
+  action    String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("task_events")
+}
+
 

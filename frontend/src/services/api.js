@@ -72,6 +72,14 @@ export const getTasks = async () => {
   return response.data;
 };
 
+export const getAdminSummary = async ({ from, to }) => {
+  const params = new URLSearchParams();
+  if (from) params.append('from', from);
+  if (to) params.append('to', to);
+  const response = await axios.get(`${API_BASE_URL}/tasks/summary?${params.toString()}`);
+  return response.data;
+};
+
 export const submitTask = async (taskId, proofImage) => {
   const formData = new FormData();
   if (proofImage) {
@@ -95,8 +103,62 @@ export const approveTask = async (taskId) => {
   return response.data;
 };
 
-export const rejectTask = async (taskId) => {
-  const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/reject`);
+export const rejectTask = async (taskId, approvalNotes) => {
+  const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/reject`, {
+    approvalNotes
+  });
+  return response.data;
+};
+
+/**
+ * Task history API
+ */
+export const getTaskHistory = async (taskId) => {
+  const response = await axios.get(`${API_BASE_URL}/tasks/${taskId}/history`);
+  return response.data;
+};
+
+export const getTask = async (taskId) => {
+  const response = await axios.get(`${API_BASE_URL}/tasks/${taskId}`);
+  return response.data;
+};
+
+export const updateTask = async (taskId, fields) => {
+  const response = await axios.put(`${API_BASE_URL}/tasks/${taskId}`, fields);
+  return response.data;
+};
+
+export const createTaskUpdate = async (taskId, message) => {
+  const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/updates`, { message });
+  return response.data;
+};
+
+export const getProfile = async () => {
+  const response = await axios.get(`${API_BASE_URL}/users/me`);
+  return response.data;
+};
+
+export const updateProfile = async (fields) => {
+  const response = await axios.put(`${API_BASE_URL}/users/me`, fields);
+  return response.data;
+};
+
+export const getTaskAttachments = async (taskId) => {
+  const response = await axios.get(`${API_BASE_URL}/tasks/${taskId}/attachments`);
+  return response.data;
+};
+
+export const uploadTaskAttachment = async (taskId, file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await axios.post(`${API_BASE_URL}/tasks/${taskId}/attachments`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
+};
+
+export const deleteAttachment = async (attachmentId) => {
+  const response = await axios.delete(`${API_BASE_URL}/attachments/${attachmentId}`);
   return response.data;
 };
 
