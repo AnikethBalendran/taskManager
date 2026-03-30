@@ -1,47 +1,34 @@
 import React, { useState, useEffect } from 'react';
+import { formatInr } from '../utils/currency';
 import { useNavigate } from 'react-router-dom';
-import { createUser, getUsers, updateUser, deleteUser, getUserTasks, createTask, approveTask, rejectTask, getTasks, deleteTask, getProfile, updateProfile, uploadTaskAttachment } from '../services/api';
+import {
+  createUser,
+  getUsers,
+  updateUser,
+  deleteUser,
+  getUserTasks,
+  approveTask,
+  rejectTask,
+  getProfile,
+  updateProfile
+} from '../services/api';
+import AdminManageHeader from '../components/AdminManageHeader';
+import AdminProfileModal from '../components/AdminProfileModal';
+import { formatDueDate, dueDateColor, getStatusBadge } from '../utils/taskDisplay';
 
-const formatDueDate = (deadline) => {
-  const diff = Math.ceil((new Date(deadline) - new Date()) / 86400000);
-  if (diff < 0) return `Overdue by ${Math.abs(diff)} day(s)`;
-  if (diff === 0) return 'Due today';
-  if (diff === 1) return 'Due tomorrow';
-  return `Due in ${diff} days`;
-};
-
-const dueDateColor = (deadline, isOverdue) => {
-  if (isOverdue) return 'text-red-600';
-  const diff = Math.ceil((new Date(deadline) - new Date()) / 86400000);
-  if (diff <= 3) return 'text-amber-600';
-  return 'text-slate-600';
-};
-
-const AdminDashboard = ({ user, onLogout }) => {
+const AdminUsersPage = ({ user, onLogout }) => {
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
-  const [allTasks, setAllTasks] = useState([]);
-  const [taskStatusFilter, setTaskStatusFilter] = useState('ALL');
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [showCreateTaskForm, setShowCreateTaskForm] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [userTasks, setUserTasks] = useState([]);
   const [userTaskFilter, setUserTaskFilter] = useState('ALL');
   const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState({ email: '', password: '', role: 'USER' });
-  const [taskFormData, setTaskFormData] = useState({
-    title: '',
-    description: '',
-    assignedToId: '',
-    deadline: '',
-    requiresProof: false
-  });
-  const [taskFiles, setTaskFiles] = useState([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Profile modal
   const [showProfile, setShowProfile] = useState(false);
   const [profile, setProfile] = useState(null);
   const [profileForm, setProfileForm] = useState({ firstName: '', lastName: '', phone: '', profilePicture: '' });
@@ -50,7 +37,6 @@ const AdminDashboard = ({ user, onLogout }) => {
 
   useEffect(() => {
     loadUsers();
-    loadAllTasks();
   }, []);
 
   const loadUsers = async () => {
@@ -59,15 +45,6 @@ const AdminDashboard = ({ user, onLogout }) => {
       setUsers(response.users);
     } catch (err) {
       console.error('Failed to load users:', err);
-    }
-  };
-
-  const loadAllTasks = async () => {
-    try {
-      const response = await getTasks();
-      setAllTasks(response.tasks);
-    } catch (err) {
-      console.error('Failed to load tasks:', err);
     }
   };
 
@@ -182,51 +159,12 @@ const AdminDashboard = ({ user, onLogout }) => {
     }
   };
 
-  const handleCreateTask = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    setLoading(true);
-
-    try {
-      const result = await createTask(taskFormData);
-      const createdTask = result.task || result;
-
-      // Best-effort attachment uploads – do not fail task creation if uploads fail
-      if (createdTask?.id && taskFiles.length > 0) {
-        try {
-          await Promise.all(
-            taskFiles.map(file => uploadTaskAttachment(createdTask.id, file))
-          );
-        } catch (uploadErr) {
-          console.error('Attachment upload error:', uploadErr);
-          setError(prev => (prev ? `${prev} Task created but some attachments failed to upload.` : 'Task created but some attachments failed to upload.'));
-        }
-      }
-
-      setSuccess('Task created successfully');
-      setTaskFormData({ title: '', description: '', assignedToId: '', deadline: '', requiresProof: false });
-      setTaskFiles([]);
-      setShowCreateTaskForm(false);
-      loadAllTasks();
-      if (selectedUserId) handleViewUserTasks(selectedUserId);
-    } catch (err) {
-      const errorMsg = err.response?.data?.error || 'Failed to create task';
-      const errorDetails = err.response?.data?.details || '';
-      setError(errorDetails ? `${errorMsg}: ${errorDetails}` : errorMsg);
-      console.error('Create task error:', err.response?.data || err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleApproveTask = async (taskId) => {
     try {
       setError('');
       setSuccess('');
       await approveTask(taskId);
       setSuccess('Task approved successfully');
-      loadAllTasks();
       if (selectedUserId) await handleViewUserTasks(selectedUserId);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to approve task');
@@ -240,38 +178,12 @@ const AdminDashboard = ({ user, onLogout }) => {
       const feedback = window.prompt('Enter rejection feedback for the user (optional):', '');
       await rejectTask(taskId, feedback || undefined);
       setSuccess('Task rejected successfully');
-      loadAllTasks();
       if (selectedUserId) await handleViewUserTasks(selectedUserId);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to reject task');
     }
   };
 
-  const handleDeleteTask = async (taskId) => {
-    if (!window.confirm('Delete this task permanently? This cannot be undone.')) return;
-    setError('');
-    setSuccess('');
-    try {
-      await deleteTask(taskId);
-      setSuccess('Task deleted');
-      loadAllTasks();
-      if (selectedUserId) await handleViewUserTasks(selectedUserId);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to delete task');
-    }
-  };
-
-  const getStatusBadge = (status) => {
-    const statusClass = `status-${status.toLowerCase()}`;
-    return <span className={`status-badge ${statusClass}`}>{status}</span>;
-  };
-
-  const assignableUsers = users.filter(
-    (u) =>
-      (u.role === 'ADMIN' || u.role === 'SUPERVISOR' || u.role === 'USER') &&
-      u.id !== user.id
-  );
-  const filteredAllTasks = taskStatusFilter === 'ALL' ? allTasks : allTasks.filter(t => t.status === taskStatusFilter);
   const filteredUserTasks = userTaskFilter === 'ALL' ? userTasks : userTasks.filter(t => t.status === userTaskFilter);
 
   const inputClass = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
@@ -283,81 +195,41 @@ const AdminDashboard = ({ user, onLogout }) => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <h1 className="text-xl font-semibold text-slate-800">Admin Dashboard</h1>
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-slate-600">Welcome, {user.email}</span>
-              <button type="button" onClick={openProfile} className={btnSecondary}>My Profile</button>
-              <button onClick={onLogout} className={btnSecondary}>Logout</button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AdminManageHeader user={user} onLogout={onLogout} onOpenProfile={openProfile} activeSection="users" />
 
-      {/* Profile Modal */}
       {showProfile && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-            <h2 className="text-lg font-semibold text-slate-800 mb-4">My Profile</h2>
-            {profileError && <p className="text-sm text-red-600 mb-3">{profileError}</p>}
-            {!profile ? (
-              <p className="text-sm text-slate-500">Loading...</p>
-            ) : (
-              <form onSubmit={handleProfileSave} className="space-y-3">
-                <div>
-                  <label className={labelClass}>First Name</label>
-                  <input type="text" value={profileForm.firstName} onChange={e => setProfileForm({ ...profileForm, firstName: e.target.value })} className={inputClass} />
-                </div>
-                <div>
-                  <label className={labelClass}>Last Name</label>
-                  <input type="text" value={profileForm.lastName} onChange={e => setProfileForm({ ...profileForm, lastName: e.target.value })} className={inputClass} />
-                </div>
-                <div>
-                  <label className={labelClass}>Phone</label>
-                  <input type="text" value={profileForm.phone} onChange={e => setProfileForm({ ...profileForm, phone: e.target.value })} className={inputClass} />
-                </div>
-                <div>
-                  <label className={labelClass}>Profile Picture URL</label>
-                  <input type="text" value={profileForm.profilePicture} onChange={e => setProfileForm({ ...profileForm, profilePicture: e.target.value })} className={inputClass} placeholder="https://..." />
-                </div>
-                <div className="flex gap-3 pt-2">
-                  <button type="submit" disabled={profileSaving} className={btnPrimary}>{profileSaving ? 'Saving...' : 'Save'}</button>
-                  <button type="button" onClick={() => setShowProfile(false)} className={btnSecondary}>Cancel</button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
+        <AdminProfileModal
+          onClose={() => setShowProfile(false)}
+          profile={profile}
+          profileForm={profileForm}
+          setProfileForm={setProfileForm}
+          profileError={profileError}
+          profileSaving={profileSaving}
+          onSubmit={handleProfileSave}
+          inputClass={inputClass}
+          labelClass={labelClass}
+          btnPrimary={btnPrimary}
+          btnSecondary={btnSecondary}
+        />
       )}
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {error && !showCreateForm && !showCreateTaskForm && !editingUser && (
+        {error && !showCreateForm && !editingUser && (
           <div className="mb-4 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>
         )}
-        {success && !showCreateForm && !showCreateTaskForm && !editingUser && (
+        {success && !showCreateForm && !editingUser && (
           <div className="mb-4 p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">{success}</div>
         )}
 
-        {/* Users table */}
         <div className="bg-white rounded-xl shadow-card border border-slate-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <h2 className="text-lg font-semibold text-slate-800">Users</h2>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => { setShowCreateTaskForm(false); setShowCreateForm(!showCreateForm); }}
-                className={btnPrimary}
-              >
-                {showCreateForm ? 'Cancel' : 'Create User'}
-              </button>
-              <button
-                onClick={() => { setShowCreateForm(false); setShowCreateTaskForm(!showCreateTaskForm); }}
-                className={btnPrimary}
-              >
-                {showCreateTaskForm ? 'Cancel' : 'Create Task'}
-              </button>
-            </div>
+            <button
+              onClick={() => { setShowCreateForm(!showCreateForm); }}
+              className={btnPrimary}
+            >
+              {showCreateForm ? 'Cancel' : 'Create User'}
+            </button>
           </div>
 
           {showCreateForm && (
@@ -383,60 +255,6 @@ const AdminDashboard = ({ user, onLogout }) => {
                 {error && <p className="text-sm text-red-600">{error}</p>}
                 {success && <p className="text-sm text-emerald-600">{success}</p>}
                 <button type="submit" className={btnPrimary} disabled={loading}>{loading ? 'Creating...' : 'Create User'}</button>
-              </div>
-            </form>
-          )}
-
-          {showCreateTaskForm && (
-            <form onSubmit={handleCreateTask} className="p-6 bg-slate-50 border-b border-slate-200">
-              <h3 className="text-base font-semibold text-slate-800 mb-4">Create New Task</h3>
-              <div className="space-y-4 max-w-md">
-                <div>
-                  <label htmlFor="task-title" className={labelClass}>Title</label>
-                  <input id="task-title" type="text" value={taskFormData.title} onChange={(e) => setTaskFormData({ ...taskFormData, title: e.target.value })} className={inputClass} required />
-                </div>
-                <div>
-                  <label htmlFor="task-description" className={labelClass}>Description</label>
-                  <textarea id="task-description" value={taskFormData.description} onChange={(e) => setTaskFormData({ ...taskFormData, description: e.target.value })} className={`${inputClass} min-h-[100px] resize-y`} required />
-                </div>
-                <div>
-                  <label htmlFor="task-assign" className={labelClass}>Assign To</label>
-                  <select id="task-assign" value={taskFormData.assignedToId} onChange={(e) => setTaskFormData({ ...taskFormData, assignedToId: e.target.value })} className={inputClass} required>
-                    <option value="">Select assignee</option>
-                    {assignableUsers.map((u) => (
-                      <option key={u.id} value={u.id}>{u.email} ({u.role})</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="task-deadline" className={labelClass}>Deadline</label>
-                  <input id="task-deadline" type="datetime-local" value={taskFormData.deadline} onChange={(e) => setTaskFormData({ ...taskFormData, deadline: e.target.value })} className={inputClass} required />
-                </div>
-                <div className="mb-4">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" checked={taskFormData.requiresProof} onChange={(e) => setTaskFormData({ ...taskFormData, requiresProof: e.target.checked })} className="h-4 w-4 rounded border-slate-300 text-primary-500 focus:ring-2 focus:ring-primary-500 focus:ring-offset-0 cursor-pointer" />
-                    <span className="text-sm font-medium text-slate-700">Requires Proof Image</span>
-                  </label>
-                </div>
-                <div>
-                  <label className={labelClass}>Attachments (optional)</label>
-                  <input
-                    type="file"
-                    multiple
-                    onChange={(e) => setTaskFiles(Array.from(e.target.files || []))}
-                    className={inputClass}
-                  />
-                  {taskFiles.length > 0 && (
-                    <ul className="mt-2 text-xs text-slate-600 list-disc list-inside space-y-0.5">
-                      {taskFiles.map((file) => (
-                        <li key={file.name}>{file.name}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-                {error && <p className="text-sm text-red-600">{error}</p>}
-                {success && <p className="text-sm text-emerald-600">{success}</p>}
-                <button type="submit" className={btnPrimary} disabled={loading}>{loading ? 'Creating...' : 'Create Task'}</button>
               </div>
             </form>
           )}
@@ -499,90 +317,6 @@ const AdminDashboard = ({ user, onLogout }) => {
           </div>
         </div>
 
-        {/* All Tasks table */}
-        <div className="bg-white rounded-xl shadow-card border border-slate-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-200">
-            <h2 className="text-lg font-semibold text-slate-800">All Tasks</h2>
-          </div>
-
-          {/* Status filter chips */}
-          <div className="px-6 py-3 border-b border-slate-100 flex gap-2 flex-wrap">
-            {['ALL', 'PENDING', 'IN_PROGRESS', 'COMPLETED'].map(s => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setTaskStatusFilter(s)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                  taskStatusFilter === s
-                    ? 'bg-primary-500 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {s === 'ALL' ? 'All' : s.replace('_', ' ')}
-              </button>
-            ))}
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Title</th>
-                  <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Assigned To</th>
-                  <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Deadline</th>
-                  <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">CAPEX/REVEX</th>
-                  <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAllTasks.map((task) => (
-                  <tr key={task.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                    <td className="px-6 py-3 text-sm">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <strong className="text-slate-800">{task.title}</strong>
-                        {task.capId && (
-                          <span className="font-mono text-xs bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 text-slate-500">{task.capId}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-3 text-sm text-slate-600">
-                      {task.assignedTo?.email || task.assignedBy?.email || '—'}
-                    </td>
-                    <td className={`px-6 py-3 text-sm ${dueDateColor(task.deadline, task.isOverdue)}`}>
-                      {formatDueDate(task.deadline)}
-                    </td>
-                    <td className="px-6 py-3">{getStatusBadge(task.status)}</td>
-                    <td className="px-6 py-3 text-sm text-slate-600">
-                      {task.capexType !== 'NONE' ? (
-                        <span>{task.capexType}{task.capexAmount != null ? ` $${Number(task.capexAmount).toLocaleString()}` : ''}</span>
-                      ) : '—'}
-                    </td>
-                    <td className="px-6 py-3">
-                      <div className="flex flex-wrap gap-2">
-                        <button type="button" onClick={() => navigate(`/tasks/${task.id}`)} className={btnSecondary}>View</button>
-                        <button type="button" onClick={() => handleDeleteTask(task.id)} className={btnDanger}>Delete</button>
-                        {task.approvalStatus === 'PENDING' && (
-                          <>
-                            <button type="button" onClick={() => handleApproveTask(task.id)} className={btnSuccess}>Approve</button>
-                            <button type="button" onClick={() => handleRejectTask(task.id)} className={btnDanger}>Reject</button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {filteredAllTasks.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-4 text-sm text-slate-500 text-center">No tasks found.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* User-specific tasks panel */}
         {selectedUserId && (
           <div className="bg-white rounded-xl shadow-card border border-slate-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -592,7 +326,6 @@ const AdminDashboard = ({ user, onLogout }) => {
               <button type="button" onClick={() => { setSelectedUserId(null); setUserTasks([]); }} className={btnSecondary}>Close</button>
             </div>
 
-            {/* Filter chips */}
             <div className="px-6 py-3 border-b border-slate-100 flex gap-2 flex-wrap">
               {['ALL', 'PENDING', 'IN_PROGRESS', 'COMPLETED'].map(s => (
                 <button
@@ -644,7 +377,7 @@ const AdminDashboard = ({ user, onLogout }) => {
                           <td className="px-6 py-3">{getStatusBadge(task.status)}</td>
                           <td className="px-6 py-3 text-sm text-slate-600">
                             {task.capexType !== 'NONE' ? (
-                              <span>{task.capexType}{task.capexAmount != null ? ` $${Number(task.capexAmount).toLocaleString()}` : ''}</span>
+                              <span>{task.capexType}{task.capexAmount != null ? ` ${formatInr(task.capexAmount)}` : ''}</span>
                             ) : '—'}
                           </td>
                           <td className="px-6 py-3 text-sm">
@@ -677,4 +410,4 @@ const AdminDashboard = ({ user, onLogout }) => {
   );
 };
 
-export default AdminDashboard;
+export default AdminUsersPage;

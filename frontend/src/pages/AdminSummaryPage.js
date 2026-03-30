@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAdminSummary } from '../services/api';
+import { formatInr } from '../utils/currency';
+import {
+  formatLocalDateString,
+  startOfLocalDayFromYmd,
+  exclusiveEndAfterInclusiveLocalDay
+} from '../utils/adminSummaryRange';
 
 const AdminSummaryPage = ({ user, onLogout }) => {
   const navigate = useNavigate();
@@ -12,9 +18,9 @@ const AdminSummaryPage = ({ user, onLogout }) => {
 
   useEffect(() => {
     const now = new Date();
-    const defaultTo = now.toISOString().slice(0, 16);
-    const fromDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const defaultFrom = fromDate.toISOString().slice(0, 16);
+    const defaultTo = formatLocalDateString(now);
+    const fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30);
+    const defaultFrom = formatLocalDateString(fromDate);
     setFrom(defaultFrom);
     setTo(defaultTo);
   }, []);
@@ -29,9 +35,17 @@ const AdminSummaryPage = ({ user, onLogout }) => {
     try {
       setLoading(true);
       setError('');
+      if (!from || !to) return;
+      const fromStart = startOfLocalDayFromYmd(from);
+      const toExclusive = exclusiveEndAfterInclusiveLocalDay(to);
+      if (fromStart >= toExclusive) {
+        setError('The end date must be on or after the start date.');
+        setSummary(null);
+        return;
+      }
       const res = await getAdminSummary({
-        from: new Date(from).toISOString(),
-        to: new Date(to).toISOString()
+        from: fromStart.toISOString(),
+        to: toExclusive.toISOString()
       });
       setSummary(res);
     } catch (err) {
@@ -49,11 +63,6 @@ const AdminSummaryPage = ({ user, onLogout }) => {
   const inputClass =
     'w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
 
-  const formatCurrency = (value) => {
-    if (!value || isNaN(value)) return '₹0';
-    return `₹${Number(value).toLocaleString()}`;
-  };
-
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-slate-200 shadow-sm">
@@ -64,10 +73,17 @@ const AdminSummaryPage = ({ user, onLogout }) => {
               <span className="text-sm text-slate-600">Welcome, {user.email}</span>
               <button
                 type="button"
-                onClick={() => navigate('/admin/manage')}
+                onClick={() => navigate('/admin/users')}
                 className={btnSecondary}
               >
-                Manage Users & Tasks
+                Manage Users
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/admin/tasks')}
+                className={btnSecondary}
+              >
+                Manage Tasks
               </button>
               <button type="button" onClick={onLogout} className={btnSecondary}>
                 Logout
@@ -84,7 +100,7 @@ const AdminSummaryPage = ({ user, onLogout }) => {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">From</label>
               <input
-                type="datetime-local"
+                type="date"
                 className={inputClass}
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
@@ -93,7 +109,7 @@ const AdminSummaryPage = ({ user, onLogout }) => {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">To</label>
               <input
-                type="datetime-local"
+                type="date"
                 className={inputClass}
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
@@ -104,10 +120,10 @@ const AdminSummaryPage = ({ user, onLogout }) => {
                 type="button"
                 onClick={() => {
                   const now = new Date();
-                  const toVal = now.toISOString().slice(0, 16);
-                  const fromVal = new Date(
-                    now.getTime() - 7 * 24 * 60 * 60 * 1000
-                  ).toISOString().slice(0, 16);
+                  const toVal = formatLocalDateString(now);
+                  const fromVal = formatLocalDateString(
+                    new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7)
+                  );
                   setFrom(fromVal);
                   setTo(toVal);
                 }}
@@ -119,10 +135,10 @@ const AdminSummaryPage = ({ user, onLogout }) => {
                 type="button"
                 onClick={() => {
                   const now = new Date();
-                  const toVal = now.toISOString().slice(0, 16);
-                  const fromVal = new Date(
-                    now.getTime() - 30 * 24 * 60 * 60 * 1000
-                  ).toISOString().slice(0, 16);
+                  const toVal = formatLocalDateString(now);
+                  const fromVal = formatLocalDateString(
+                    new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30)
+                  );
                   setFrom(fromVal);
                   setTo(toVal);
                 }}
@@ -201,7 +217,7 @@ const AdminSummaryPage = ({ user, onLogout }) => {
                     </div>
                   </div>
                   <div className="text-lg font-semibold text-slate-800">
-                    {formatCurrency(summary.financial?.capexTotal)}
+                    {formatInr(summary.financial?.capexTotal)}
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
@@ -211,7 +227,7 @@ const AdminSummaryPage = ({ user, onLogout }) => {
                     </div>
                   </div>
                   <div className="text-lg font-semibold text-slate-800">
-                    {formatCurrency(summary.financial?.revexTotal)}
+                    {formatInr(summary.financial?.revexTotal)}
                   </div>
                 </div>
                 <div className="pt-3 mt-1 border-t border-slate-200 flex items-center justify-between">
@@ -224,7 +240,7 @@ const AdminSummaryPage = ({ user, onLogout }) => {
                     </div>
                   </div>
                   <div className="text-xl font-semibold text-primary-600">
-                    {formatCurrency(summary.financial?.grandTotal)}
+                    {formatInr(summary.financial?.grandTotal)}
                   </div>
                 </div>
               </div>

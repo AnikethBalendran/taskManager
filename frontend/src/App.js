@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
-import AdminDashboard from './pages/AdminDashboard';
+import AdminUsersPage from './pages/AdminUsersPage';
+import AdminTasksPage from './pages/AdminTasksPage';
 import SupervisorDashboard from './pages/SupervisorDashboard';
 import UserDashboard from './pages/UserDashboard';
 import TaskDetailPage from './pages/TaskDetailPage';
@@ -71,14 +72,28 @@ function App() {
           }
         />
         <Route
-          path="/admin/manage"
+          path="/admin/users"
           element={
             user?.role === 'ADMIN' ? (
-              <AdminDashboard user={user} onLogout={handleLogout} />
+              <AdminUsersPage user={user} onLogout={handleLogout} />
             ) : (
               <Navigate to="/login" replace />
             )
           }
+        />
+        <Route
+          path="/admin/tasks"
+          element={
+            user?.role === 'ADMIN' ? (
+              <AdminTasksPage user={user} onLogout={handleLogout} />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/admin/manage"
+          element={<Navigate to="/admin/users" replace />}
         />
         <Route
           path="/supervisor"
@@ -102,7 +117,7 @@ function App() {
         />
         <Route
           path="/tasks/:id"
-          element={user ? <TaskDetailPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />}
+          element={user ? <TaskDetailPage user={user} /> : <Navigate to="/login" replace />}
         />
         <Route
           path="/"
@@ -120,4 +135,3 @@ function App() {
 }
 
 export default App;
-

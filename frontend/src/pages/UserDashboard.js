@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatInr } from '../utils/currency';
 import { useNavigate } from 'react-router-dom';
 import { getTasks, submitTask, getProfile, updateProfile } from '../services/api';
 
@@ -237,7 +238,7 @@ const UserDashboard = ({ user, onLogout }) => {
                     </td>
                     <td className="px-6 py-3 text-sm text-slate-600">
                       {task.capexType !== 'NONE' ? (
-                        <span>{task.capexType}{task.capexAmount != null ? ` $${Number(task.capexAmount).toLocaleString()}` : ''}</span>
+                        <span>{task.capexType}{task.capexAmount != null ? ` ${formatInr(task.capexAmount)}` : ''}</span>
                       ) : '—'}
                     </td>
                     <td className="px-6 py-3 text-sm">

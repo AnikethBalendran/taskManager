@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatInr } from '../utils/currency';
 import { useNavigate } from 'react-router-dom';
 import { createTask, getTasks, deleteTask, approveTask, rejectTask, getUsers, getTaskHistory, getProfile, updateProfile, uploadTaskAttachment } from '../services/api';
 
@@ -423,7 +424,7 @@ const SupervisorDashboard = ({ user, onLogout }) => {
                     <td className="px-6 py-3">{getStatusBadge(task.status)}</td>
                     <td className="px-6 py-3 text-sm text-slate-600">
                       {task.capexType !== 'NONE' ? (
-                        <span>{task.capexType}{task.capexAmount != null ? ` $${Number(task.capexAmount).toLocaleString()}` : ''}</span>
+                        <span>{task.capexType}{task.capexAmount != null ? ` ${formatInr(task.capexAmount)}` : ''}</span>
                       ) : '—'}
                     </td>
                     <td className="px-6 py-3">

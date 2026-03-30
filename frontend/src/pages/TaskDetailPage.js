@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { formatInr } from '../utils/currency';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   getTask, updateTask, deleteTask, approveTask, rejectTask, submitTask,
@@ -104,7 +105,7 @@ const TaskDetailPage = ({ user }) => {
     setError('');
     try {
       await deleteTask(id);
-      if (user.role === 'ADMIN') navigate('/admin/manage');
+      if (user.role === 'ADMIN') navigate('/admin/tasks');
       else if (user.role === 'SUPERVISOR') navigate('/supervisor');
       else navigate(-1);
     } catch (err) {
@@ -451,7 +452,7 @@ const TaskDetailPage = ({ user }) => {
                   />
                 ) : (
                   <p className="text-sm text-slate-800">
-                    {task.capexAmount != null ? `$${Number(task.capexAmount).toLocaleString()}` : '—'}
+                    {task.capexAmount != null ? formatInr(task.capexAmount) : '—'}
                   </p>
                 )}
               </div>
