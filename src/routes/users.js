@@ -227,6 +227,55 @@ router.put('/:id', authorize('ADMIN'), async (req, res) => {
 });
 
 /**
+ * DELETE /users/:id
+ * Delete a user (Admin only). Blocked if user has any tasks as assignee or creator.
+ */
+router.delete('/:id', authorize('ADMIN'), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (id === req.user.id) {
+      return res.status(400).json({ error: 'You cannot delete your own account' });
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { id }
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (existingUser.role === 'ADMIN') {
+      const adminCount = await prisma.user.count({ where: { role: 'ADMIN' } });
+      if (adminCount <= 1) {
+        return res.status(400).json({ error: 'Cannot delete the last admin account' });
+      }
+    }
+
+    const taskCount = await prisma.task.count({
+      where: {
+        OR: [{ assignedToId: id }, { assignedById: id }]
+      }
+    });
+
+    if (taskCount > 0) {
+      return res.status(409).json({
+        error:
+          'Cannot delete this user while they are linked to tasks (as assignee or creator). Reassign or archive those tasks first.'
+      });
+    }
+
+    await prisma.user.delete({ where: { id } });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+/**
  * GET /users/:id/tasks
  * Get active tasks for a specific user (Admin only)
   * Returns non-archived tasks ordered by deadline ascending

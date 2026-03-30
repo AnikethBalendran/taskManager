@@ -110,8 +110,11 @@ router.post('/', authorize('ADMIN', 'SUPERVISOR'), async (req, res) => {
       return res.status(403).json({ error: 'Supervisors can only assign tasks to users' });
     }
 
-    if (req.user.role === 'ADMIN' && !['SUPERVISOR', 'USER'].includes(assignedUser.role)) {
-      return res.status(403).json({ error: 'Admin can only assign tasks to supervisors or users' });
+    if (
+      req.user.role === 'ADMIN' &&
+      !['ADMIN', 'SUPERVISOR', 'USER'].includes(assignedUser.role)
+    ) {
+      return res.status(403).json({ error: 'Invalid assignee role' });
     }
 
     // Create task
@@ -212,14 +215,20 @@ router.get('/', async (req, res) => {
         }
       });
     } else if (req.user.role === 'SUPERVISOR') {
-      // Supervisor can see tasks they created
+      // Tasks the supervisor created, or tasks assigned to them (e.g. by an admin)
       tasks = await prisma.task.findMany({
         where: {
-          assignedById: req.user.id,
-          archived: false
+          archived: false,
+          OR: [{ assignedById: req.user.id }, { assignedToId: req.user.id }]
         },
         include: {
           assignedTo: {
+            select: {
+              id: true,
+              email: true
+            }
+          },
+          assignedBy: {
             select: {
               id: true,
               email: true
@@ -399,12 +408,22 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Task not found' });
     }
 
-    if (req.user.role === 'SUPERVISOR' && task.assignedById !== req.user.id) {
-      return res.status(403).json({ error: 'Not authorized to update this task' });
-    }
     if (req.user.role === 'USER' && task.assignedToId !== req.user.id) {
       return res.status(403).json({ error: 'Not authorized to update this task' });
     }
+    if (
+      req.user.role === 'SUPERVISOR' &&
+      task.assignedById !== req.user.id &&
+      task.assignedToId !== req.user.id
+    ) {
+      return res.status(403).json({ error: 'Not authorized to update this task' });
+    }
+
+    const isAssigneeOnly =
+      (req.user.role === 'USER' && task.assignedToId === req.user.id) ||
+      (req.user.role === 'SUPERVISOR' &&
+        task.assignedToId === req.user.id &&
+        task.assignedById !== req.user.id);
 
     const {
       title, description, assignedToId, deadline, requiresProof,
@@ -414,7 +433,7 @@ router.put('/:id', async (req, res) => {
 
     const updateData = {};
 
-    if (req.user.role === 'USER') {
+    if (isAssigneeOnly) {
       if (completionDetails !== undefined) updateData.completionDetails = completionDetails;
       if (remarks !== undefined) updateData.remarks = remarks || null;
       if (status === 'IN_PROGRESS' && task.status === 'PENDING') {
@@ -468,6 +487,12 @@ router.put('/:id', async (req, res) => {
         if (req.user.role === 'SUPERVISOR' && newAssignee.role !== 'USER') {
           return res.status(403).json({ error: 'Supervisors can only assign tasks to users' });
         }
+        if (
+          req.user.role === 'ADMIN' &&
+          !['ADMIN', 'SUPERVISOR', 'USER'].includes(newAssignee.role)
+        ) {
+          return res.status(403).json({ error: 'Invalid assignee role' });
+        }
         updateData.assignedToId = assignedToId;
         try {
           await emailService.sendTaskAssignmentEmail(newAssignee.email, task.title, task.description, task.deadline);
@@ -503,6 +528,40 @@ router.put('/:id', async (req, res) => {
     res.status(500).json({ error: 'Failed to update task' });
   }
 });
+
+/**
+ * DELETE /tasks/:id
+ * Admin: any task. Supervisor: only tasks they created (assignedById).
+ * Exported for app-level registration in server.js (ensures DELETE is always reachable).
+ */
+async function deleteTaskHandler(req, res) {
+  try {
+    const taskId = req.params.id;
+
+    if (req.user.role === 'USER') {
+      return res.status(403).json({ error: 'Not authorized to delete tasks' });
+    }
+
+    const task = await prisma.task.findUnique({ where: { id: taskId } });
+
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    if (req.user.role === 'SUPERVISOR' && task.assignedById !== req.user.id) {
+      return res.status(403).json({ error: 'You can only delete tasks you assigned' });
+    }
+
+    await prisma.task.delete({ where: { id: taskId } });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete task error:', error);
+    res.status(500).json({ error: 'Failed to delete task' });
+  }
+}
+
+router.delete('/:id', deleteTaskHandler);
 
 /**
  * POST /tasks/:id/updates
@@ -565,10 +624,14 @@ router.post('/:id/updates', async (req, res) => {
 
 /**
  * POST /tasks/:id/submit
- * Submit a task for approval (User only, for tasks assigned to them)
+ * Submit for approval (USER or SUPERVISOR assignee)
  * Supports both first-time submissions and resubmissions after rejection.
  */
-router.post('/:id/submit', authorize('USER'), proofUpload.single('proofImage'), async (req, res) => {
+router.post(
+  '/:id/submit',
+  authorize('USER', 'SUPERVISOR'),
+  proofUpload.single('proofImage'),
+  async (req, res) => {
   try {
     const taskId = req.params.id;
 
@@ -933,4 +996,5 @@ router.get('/:id/history', async (req, res) => {
 });
 
 module.exports = router;
+module.exports.deleteTaskHandler = deleteTaskHandler;
 

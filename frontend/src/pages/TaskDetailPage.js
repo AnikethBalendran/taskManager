@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  getTask, updateTask, approveTask, rejectTask, submitTask,
+  getTask, updateTask, deleteTask, approveTask, rejectTask, submitTask,
   uploadTaskAttachment, deleteAttachment, createTaskUpdate
 } from '../services/api';
 
@@ -65,6 +65,7 @@ const TaskDetailPage = ({ user }) => {
     if (user.role === 'ADMIN') return true;
     if (user.role === 'SUPERVISOR' && task.assignedById === user.id) return true;
     if (user.role === 'USER' && task.assignedToId === user.id) return true;
+    if (user.role === 'SUPERVISOR' && task.assignedToId === user.id) return true;
     return false;
   };
 
@@ -76,10 +77,39 @@ const TaskDetailPage = ({ user }) => {
   };
 
   const canSubmit = () => {
-    if (!task || user.role !== 'USER' || task.assignedToId !== user.id) return false;
+    if (!task || task.assignedToId !== user.id) return false;
+    if (user.role !== 'USER' && user.role !== 'SUPERVISOR') return false;
     if (task.approvalStatus === 'PENDING' || task.approvalStatus === 'APPROVED') return false;
     if (task.approvalStatus === 'REJECTED') return task.status === 'IN_PROGRESS';
     return true;
+  };
+
+  /** Admin or supervisor who created this task (full edit). Assignee supervisors use assignee-only fields. */
+  const isManagerEditor = () => {
+    if (!task) return false;
+    if (user.role === 'ADMIN') return true;
+    if (user.role === 'SUPERVISOR' && task.assignedById === user.id) return true;
+    return false;
+  };
+
+  const canDeleteTask = () => {
+    if (!task) return false;
+    if (user.role === 'ADMIN') return true;
+    if (user.role === 'SUPERVISOR' && task.assignedById === user.id) return true;
+    return false;
+  };
+
+  const handleDeleteTask = async () => {
+    if (!window.confirm('Delete this task permanently? This cannot be undone.')) return;
+    setError('');
+    try {
+      await deleteTask(id);
+      if (user.role === 'ADMIN') navigate('/admin/manage');
+      else if (user.role === 'SUPERVISOR') navigate('/supervisor');
+      else navigate(-1);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to delete task');
+    }
   };
 
   const handleSave = async () => {
@@ -308,7 +338,7 @@ const TaskDetailPage = ({ user }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Title</label>
-              {editMode && user.role !== 'USER' ? (
+              {editMode && isManagerEditor() ? (
                 <input type="text" value={editForm.title} onChange={e => setEditForm({ ...editForm, title: e.target.value })} className={inputClass} />
               ) : (
                 <p className="text-sm text-slate-800">{task.title}</p>
@@ -320,7 +350,7 @@ const TaskDetailPage = ({ user }) => {
             </div>
             <div className="md:col-span-2">
               <label className={labelClass}>Description</label>
-              {editMode && user.role !== 'USER' ? (
+              {editMode && isManagerEditor() ? (
                 <textarea value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} className={`${inputClass} min-h-[80px] resize-y`} />
               ) : (
                 <p className="text-sm text-slate-800 whitespace-pre-wrap">{task.description}</p>
@@ -328,7 +358,7 @@ const TaskDetailPage = ({ user }) => {
             </div>
             <div>
               <label className={labelClass}>Deadline</label>
-              {editMode && user.role !== 'USER' ? (
+              {editMode && isManagerEditor() ? (
                 <input type="datetime-local" value={editForm.deadline} onChange={e => setEditForm({ ...editForm, deadline: e.target.value })} className={inputClass} />
               ) : (
                 <p className={`text-sm ${dueDateColor(task.deadline, task.isOverdue)}`}>{formatDueDate(task.deadline)}</p>
@@ -336,7 +366,7 @@ const TaskDetailPage = ({ user }) => {
             </div>
             <div>
               <label className={labelClass}>Requires Proof</label>
-              {editMode && user.role !== 'USER' ? (
+              {editMode && isManagerEditor() ? (
                 <label className="flex items-center gap-2 mt-1">
                   <input type="checkbox" checked={editForm.requiresProof} onChange={e => setEditForm({ ...editForm, requiresProof: e.target.checked })} className="h-4 w-4 rounded border-slate-300 text-primary-500 focus:ring-primary-500" />
                   <span className="text-sm text-slate-700">Yes</span>
@@ -354,7 +384,7 @@ const TaskDetailPage = ({ user }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Corrective Action</label>
-              {editMode && user.role !== 'USER' ? (
+              {editMode && isManagerEditor() ? (
                 <textarea value={editForm.correctiveAction} onChange={e => setEditForm({ ...editForm, correctiveAction: e.target.value })} className={`${inputClass} min-h-[80px] resize-y`} />
               ) : (
                 <p className="text-sm text-slate-800 whitespace-pre-wrap">{task.correctiveAction || '—'}</p>
@@ -362,7 +392,7 @@ const TaskDetailPage = ({ user }) => {
             </div>
             <div>
               <label className={labelClass}>Expected Closure Date</label>
-              {editMode && user.role !== 'USER' ? (
+              {editMode && isManagerEditor() ? (
                 <input type="datetime-local" value={editForm.expectedClosureDate} onChange={e => setEditForm({ ...editForm, expectedClosureDate: e.target.value })} className={inputClass} />
               ) : (
                 <p className="text-sm text-slate-800">{task.expectedClosureDate ? new Date(task.expectedClosureDate).toLocaleDateString() : '—'}</p>
@@ -370,7 +400,7 @@ const TaskDetailPage = ({ user }) => {
             </div>
             <div className="md:col-span-2">
               <label className={labelClass}>Team Members</label>
-              {editMode && user.role !== 'USER' ? (
+              {editMode && isManagerEditor() ? (
                 <input type="text" value={editForm.teamMembers} onChange={e => setEditForm({ ...editForm, teamMembers: e.target.value })} placeholder="Comma-separated names" className={inputClass} />
               ) : (
                 <p className="text-sm text-slate-800">{task.teamMembers?.length ? task.teamMembers.join(', ') : '—'}</p>
@@ -393,7 +423,7 @@ const TaskDetailPage = ({ user }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>CAPEX/REVEX Type</label>
-              {editMode && (user.role !== 'USER' || task.assignedToId === user.id) ? (
+              {editMode && (isManagerEditor() || task.assignedToId === user.id) ? (
                 <select
                   value={editForm.capexType}
                   onChange={e => setEditForm({ ...editForm, capexType: e.target.value })}
@@ -410,7 +440,7 @@ const TaskDetailPage = ({ user }) => {
             {(task.capexType !== 'NONE' || (editMode && editForm.capexType !== 'NONE')) && (
               <div>
                 <label className={labelClass}>Expenditure</label>
-                {editMode && (user.role !== 'USER' || task.assignedToId === user.id) ? (
+                {editMode && (isManagerEditor() || task.assignedToId === user.id) ? (
                   <input
                     type="number"
                     step="0.01"
@@ -596,6 +626,11 @@ const TaskDetailPage = ({ user }) => {
                     <button onClick={handleApprove} className={btnSuccess}>Approve</button>
                     <button onClick={handleReject} className={btnDanger}>Reject</button>
                   </>
+                )}
+                {canDeleteTask() && (
+                  <button type="button" onClick={handleDeleteTask} className={btnDanger}>
+                    Delete task
+                  </button>
                 )}
               </>
             )}

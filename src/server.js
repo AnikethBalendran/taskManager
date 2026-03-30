@@ -20,11 +20,14 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const taskRoutes = require('./routes/tasks');
+const { authenticate } = require('./middleware/auth');
 const attachmentRoutes = require('./routes/attachments');
 
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/tasks', taskRoutes);
+// Fallback so DELETE /tasks/:id always matches (some setups only saw HTML 404 from the sub-router).
+app.delete('/tasks/:id', authenticate, taskRoutes.deleteTaskHandler);
 app.use('/attachments', attachmentRoutes);
 
 // Health check

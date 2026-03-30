@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createUser, getUsers, updateUser, getUserTasks, createTask, approveTask, rejectTask, getTasks, getProfile, updateProfile, uploadTaskAttachment } from '../services/api';
+import { createUser, getUsers, updateUser, deleteUser, getUserTasks, createTask, approveTask, rejectTask, getTasks, deleteTask, getProfile, updateProfile, uploadTaskAttachment } from '../services/api';
 
 const formatDueDate = (deadline) => {
   const diff = Math.ceil((new Date(deadline) - new Date()) / 86400000);
@@ -158,6 +158,30 @@ const AdminDashboard = ({ user, onLogout }) => {
     }
   };
 
+  const handleDeleteUser = async (targetUser) => {
+    if (targetUser.id === user.id) return;
+    const ok = window.confirm(
+      `Delete user ${targetUser.email}? This cannot be undone.`
+    );
+    if (!ok) return;
+    setError('');
+    setSuccess('');
+    setLoading(true);
+    try {
+      await deleteUser(targetUser.id);
+      setSuccess('User deleted successfully');
+      if (selectedUserId === targetUser.id) {
+        setSelectedUserId(null);
+        setUserTasks([]);
+      }
+      loadUsers();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to delete user');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCreateTask = async (e) => {
     e.preventDefault();
     setError('');
@@ -223,12 +247,30 @@ const AdminDashboard = ({ user, onLogout }) => {
     }
   };
 
+  const handleDeleteTask = async (taskId) => {
+    if (!window.confirm('Delete this task permanently? This cannot be undone.')) return;
+    setError('');
+    setSuccess('');
+    try {
+      await deleteTask(taskId);
+      setSuccess('Task deleted');
+      loadAllTasks();
+      if (selectedUserId) await handleViewUserTasks(selectedUserId);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to delete task');
+    }
+  };
+
   const getStatusBadge = (status) => {
     const statusClass = `status-${status.toLowerCase()}`;
     return <span className={`status-badge ${statusClass}`}>{status}</span>;
   };
 
-  const assignableUsers = users.filter(u => u.role === 'SUPERVISOR' || u.role === 'USER');
+  const assignableUsers = users.filter(
+    (u) =>
+      (u.role === 'ADMIN' || u.role === 'SUPERVISOR' || u.role === 'USER') &&
+      u.id !== user.id
+  );
   const filteredAllTasks = taskStatusFilter === 'ALL' ? allTasks : allTasks.filter(t => t.status === taskStatusFilter);
   const filteredUserTasks = userTaskFilter === 'ALL' ? userTasks : userTasks.filter(t => t.status === userTaskFilter);
 
@@ -360,7 +402,7 @@ const AdminDashboard = ({ user, onLogout }) => {
                 <div>
                   <label htmlFor="task-assign" className={labelClass}>Assign To</label>
                   <select id="task-assign" value={taskFormData.assignedToId} onChange={(e) => setTaskFormData({ ...taskFormData, assignedToId: e.target.value })} className={inputClass} required>
-                    <option value="">Select a user or supervisor</option>
+                    <option value="">Select assignee</option>
                     {assignableUsers.map((u) => (
                       <option key={u.id} value={u.id}>{u.email} ({u.role})</option>
                     ))}
@@ -434,9 +476,19 @@ const AdminDashboard = ({ user, onLogout }) => {
                           <button type="button" onClick={() => { setEditingUser(null); setError(''); setSuccess(''); }} className={btnSecondary}>Cancel</button>
                         </div>
                       ) : (
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                           <button type="button" onClick={() => handleEditUser({ ...u })} className={btnPrimary}>Edit</button>
                           <button type="button" onClick={() => handleViewUserTasks(u.id)} className={btnSecondary}>View Tasks</button>
+                          {u.id !== user.id && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteUser(u)}
+                              className={btnDanger}
+                              disabled={loading}
+                            >
+                              Delete
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>
@@ -509,6 +561,7 @@ const AdminDashboard = ({ user, onLogout }) => {
                     <td className="px-6 py-3">
                       <div className="flex flex-wrap gap-2">
                         <button type="button" onClick={() => navigate(`/tasks/${task.id}`)} className={btnSecondary}>View</button>
+                        <button type="button" onClick={() => handleDeleteTask(task.id)} className={btnDanger}>Delete</button>
                         {task.approvalStatus === 'PENDING' && (
                           <>
                             <button type="button" onClick={() => handleApproveTask(task.id)} className={btnSuccess}>Approve</button>

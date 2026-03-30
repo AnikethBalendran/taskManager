@@ -50,6 +50,11 @@ export const updateUser = async (userId, email, role) => {
   return response.data;
 };
 
+export const deleteUser = async (userId) => {
+  const response = await axios.delete(`${API_BASE_URL}/users/${userId}`);
+  return response.data;
+};
+
 export const getUserTasks = async (userId) => {
   const response = await axios.get(`${API_BASE_URL}/users/${userId}/tasks`);
   return response.data;
@@ -125,6 +130,11 @@ export const getTask = async (taskId) => {
 
 export const updateTask = async (taskId, fields) => {
   const response = await axios.put(`${API_BASE_URL}/tasks/${taskId}`, fields);
+  return response.data;
+};
+
+export const deleteTask = async (taskId) => {
+  const response = await axios.delete(`${API_BASE_URL}/tasks/${taskId}`);
   return response.data;
 };
 

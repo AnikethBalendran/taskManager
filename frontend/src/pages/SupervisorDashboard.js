@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createTask, getTasks, approveTask, rejectTask, getUsers, getTaskHistory, getProfile, updateProfile, uploadTaskAttachment } from '../services/api';
+import { createTask, getTasks, deleteTask, approveTask, rejectTask, getUsers, getTaskHistory, getProfile, updateProfile, uploadTaskAttachment } from '../services/api';
 
 const formatDueDate = (deadline) => {
   const diff = Math.ceil((new Date(deadline) - new Date()) / 86400000);
@@ -148,6 +148,16 @@ const SupervisorDashboard = ({ user, onLogout }) => {
       loadTasks();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to reject task');
+    }
+  };
+
+  const handleDeleteTask = async (taskId) => {
+    if (!window.confirm('Delete this task permanently? This cannot be undone.')) return;
+    try {
+      await deleteTask(taskId);
+      loadTasks();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to delete task');
     }
   };
 
@@ -303,6 +313,11 @@ const SupervisorDashboard = ({ user, onLogout }) => {
                       <option key={u.id} value={u.id}>{u.email}</option>
                     ))}
                   </select>
+                  {users.length === 0 && (
+                    <p className="mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                      No user accounts available. Supervisors can only assign tasks to users with the USER role. Ask an admin to create USER accounts.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="task-deadline" className={labelClass}>Deadline</label>
@@ -374,6 +389,7 @@ const SupervisorDashboard = ({ user, onLogout }) => {
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
                   <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Title</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Your role</th>
                   <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Assigned To</th>
                   <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Deadline</th>
                   <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
@@ -392,6 +408,13 @@ const SupervisorDashboard = ({ user, onLogout }) => {
                         )}
                       </div>
                       <span className="text-slate-600 text-sm">{task.description}</span>
+                    </td>
+                    <td className="px-6 py-3 text-sm text-slate-600">
+                      {task.assignedById === user.id ? (
+                        <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">Creator</span>
+                      ) : (
+                        <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-primary-50 text-primary-800 border border-primary-100">Assignee</span>
+                      )}
                     </td>
                     <td className="px-6 py-3 text-sm text-slate-600">{task.assignedTo.email}</td>
                     <td className={`px-6 py-3 text-sm ${dueDateColor(task.deadline, task.isOverdue)}`}>
@@ -419,7 +442,16 @@ const SupervisorDashboard = ({ user, onLogout }) => {
                         >
                           History
                         </button>
-                        {task.approvalStatus === 'PENDING' && (
+                        {task.assignedById === user.id && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTask(task.id)}
+                            className={btnDanger}
+                          >
+                            Delete
+                          </button>
+                        )}
+                        {task.approvalStatus === 'PENDING' && task.assignedById === user.id && (
                           <>
                             {task.submission?.proofImagePath && (
                               <a
