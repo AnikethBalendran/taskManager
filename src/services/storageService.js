@@ -1,6 +1,11 @@
+const https = require('https');
+const { URL } = require('url');
 const admin = require('firebase-admin');
+const { JWT } = require('google-auth-library');
 
 let firebaseInitialized = false;
+/** Lazy JWT client for GCS REST uploads (avoids @google-cloud/storage stream bugs on some hosts). */
+let gcsJwtClient = null;
 
 // #region agent log
 const agentLog = (location, message, data, hypothesisId) => {
@@ -76,6 +81,62 @@ const initFirebase = () => {
 };
 
 /**
+ * Upload object bytes using GCS JSON API media upload (single POST).
+ * Does not use File#createWriteStream / duplexify (avoids "stream was destroyed" on Render).
+ */
+const uploadBufferViaGcsRest = async (bucketName, objectPath, buffer, contentType) => {
+  if (!gcsJwtClient) {
+    const { FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY } = process.env;
+    gcsJwtClient = new JWT({
+      email: FIREBASE_CLIENT_EMAIL,
+      key: FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      scopes: ['https://www.googleapis.com/auth/devstorage.full_control']
+    });
+  }
+  const { token } = await gcsJwtClient.getAccessToken();
+  if (!token) {
+    throw new Error('Could not obtain access token for storage upload');
+  }
+
+  const uploadUrl =
+    `https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(bucketName)}/o` +
+    `?uploadType=media&name=${encodeURIComponent(objectPath)}`;
+
+  const u = new URL(uploadUrl);
+  await new Promise((resolve, reject) => {
+    const req = https.request(
+      {
+        hostname: u.hostname,
+        path: u.pathname + u.search,
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': contentType || 'application/octet-stream',
+          'Content-Length': buffer.length
+        }
+      },
+      (res) => {
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => {
+          const body = Buffer.concat(chunks).toString();
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(body);
+          } else {
+            const err = new Error(`GCS REST upload failed: ${res.statusCode} ${body}`);
+            err.status = res.statusCode;
+            reject(err);
+          }
+        });
+      }
+    );
+    req.on('error', reject);
+    req.write(buffer);
+    req.end();
+  });
+};
+
+/**
  * Upload a task attachment (including proof images) to Firebase Storage.
  * Expects `file` to be a Multer file object using memoryStorage.
  */
@@ -118,24 +179,15 @@ const uploadTaskFile = async (taskId, file) => {
   const fileRef = bucket.file(filePath);
 
   try {
-    // validation: false avoids HashStreamValidator bugs ("Cannot call write after a
-    // stream was destroyed") seen on some hosts (e.g. Render) with @google-cloud/storage.
-    // GCS still stores the object; server-side integrity applies as usual.
-    await fileRef.save(file.buffer, {
-      metadata: {
-        contentType: file.mimetype
-      },
-      resumable: false,
-      validation: false
-    });
+    await uploadBufferViaGcsRest(bucket.name, filePath, file.buffer, file.mimetype);
     // #region agent log
-    agentLog('storageService.js:uploadTaskFile:afterSave', 'gcs save ok', { filePath }, 'H2');
+    agentLog('storageService.js:uploadTaskFile:afterSave', 'gcs REST upload ok', { filePath }, 'H2');
     // #endregion
   } catch (saveErr) {
     // #region agent log
     agentLog(
       'storageService.js:uploadTaskFile:saveErr',
-      'gcs save failed',
+      'gcs REST upload failed',
       { msg: saveErr && saveErr.message, code: saveErr && saveErr.code },
       'H2'
     );
