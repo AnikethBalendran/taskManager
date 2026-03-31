@@ -15,7 +15,34 @@ export const dueDateColor = (deadline, isOverdue) => {
   return 'text-slate-600';
 };
 
+/** Approval state — avoid the word "PENDING" alone (workflow also uses PENDING). */
+export const formatApprovalStatusLabel = (approvalStatus) => {
+  if (!approvalStatus || approvalStatus === 'NONE') return '';
+  switch (approvalStatus) {
+    case 'PENDING':
+      return 'Awaiting approval';
+    case 'APPROVED':
+      return 'Approved';
+    case 'REJECTED':
+      return 'Rejected';
+    default:
+      return approvalStatus.replace(/_/g, ' ');
+  }
+};
+
+/** Workflow status label — avoid "PENDING" which users confuse with approval pending. */
+export const formatWorkflowStatusLabel = (status) => {
+  if (!status) return '';
+  if (status === 'PENDING') return 'Not started';
+  if (status === 'IN_PROGRESS') return 'In progress';
+  if (status === 'COMPLETED') return 'Completed';
+  return status.replace(/_/g, ' ');
+};
+
 export const getStatusBadge = (status) => {
+  if (!status) return null;
   const statusClass = `status-${status.toLowerCase()}`;
-  return <span className={`status-badge ${statusClass}`}>{status}</span>;
+  return (
+    <span className={`status-badge ${statusClass}`}>{formatWorkflowStatusLabel(status)}</span>
+  );
 };

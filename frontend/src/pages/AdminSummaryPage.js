@@ -180,15 +180,16 @@ const AdminSummaryPage = ({ user, onLogout }) => {
                 </div>
                 <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
                   <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                    In Progress
+                    In progress
                   </div>
                   <div className="mt-1 text-2xl font-semibold text-amber-600">
                     {summary.counts?.inProgress ?? 0}
                   </div>
+                  <p className="text-[11px] text-slate-400 mt-1 leading-tight">Not yet submitted for approval</p>
                 </div>
                 <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
                   <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                    Completed
+                    Approved
                   </div>
                   <div className="mt-1 text-2xl font-semibold text-emerald-600">
                     {summary.counts?.completed ?? 0}
@@ -196,7 +197,7 @@ const AdminSummaryPage = ({ user, onLogout }) => {
                 </div>
                 <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
                   <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                    Pending
+                    Awaiting review
                   </div>
                   <div className="mt-1 text-2xl font-semibold text-slate-700">
                     {summary.counts?.pending ?? 0}

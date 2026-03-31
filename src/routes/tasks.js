@@ -271,7 +271,9 @@ router.get('/', async (req, res) => {
 
 /**
  * GET /tasks/summary
- * Admin summary of tasks and expenditure over a createdAt time range
+ * Admin summary of tasks and expenditure over a createdAt time range.
+ * counts.completed = approvalStatus APPROVED. counts.pending = submitted, awaiting supervisor.
+ * counts.inProgress = not yet submitted for approval (NONE) or rejected and back with assignee (REJECTED).
  * Query params:
  *   from (ISO string) - inclusive lower bound
  *   to   (ISO string) - exclusive upper bound
@@ -298,11 +300,23 @@ router.get('/summary', authorize('ADMIN'), async (req, res) => {
       archived: false
     };
 
+    // inProgress = not submitted for approval yet (NONE) or rejected pending resubmit (REJECTED), not workflow IN_PROGRESS
     const [createdCount, inProgressCount, completedCount, pendingCount, capexAgg, revexAgg] = await Promise.all([
       prisma.task.count({ where: baseWhere }),
-      prisma.task.count({ where: { ...baseWhere, status: 'IN_PROGRESS' } }),
-      prisma.task.count({ where: { ...baseWhere, status: 'COMPLETED' } }),
-      prisma.task.count({ where: { ...baseWhere, status: 'PENDING' } }),
+      prisma.task.count({
+        where: {
+          ...baseWhere,
+          approvalStatus: { in: ['NONE', 'REJECTED'] }
+        }
+      }),
+      prisma.task.count({ where: { ...baseWhere, approvalStatus: 'APPROVED' } }),
+      prisma.task.count({
+        where: {
+          ...baseWhere,
+          approvalStatus: 'PENDING',
+          submittedForApprovalAt: { not: null }
+        }
+      }),
       prisma.task.aggregate({
         where: {
           ...baseWhere,
@@ -872,6 +886,26 @@ router.post('/:id/attachments', attachmentUpload.single('file'), async (req, res
   try {
     const taskId = req.params.id;
 
+    // #region agent log
+    fetch('http://127.0.0.1:7382/ingest/eee79fb1-b801-4baa-bd86-e0d193626bd1', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'e0ac77' },
+      body: JSON.stringify({
+        sessionId: 'e0ac77',
+        location: 'tasks.js:POST attachments:entry',
+        message: 'attachment upload handler',
+        data: {
+          taskId,
+          hasFile: !!req.file,
+          fileSize: req.file && req.file.size,
+          originalname: req.file && req.file.originalname
+        },
+        timestamp: Date.now(),
+        hypothesisId: 'H0'
+      })
+    }).catch(() => {});
+    // #endregion
+
     const task = await prisma.task.findUnique({
       where: { id: taskId }
     });
@@ -895,18 +929,69 @@ router.post('/:id/attachments', attachmentUpload.single('file'), async (req, res
 
     const uploadResult = await storageService.uploadTaskFile(taskId, req.file);
 
-    const attachment = await prisma.attachment.create({
-      data: {
-        taskId,
-        url: uploadResult.url,
-        filename: req.file.originalname
-      }
-    });
+    let attachment;
+    try {
+      attachment = await prisma.attachment.create({
+        data: {
+          taskId,
+          url: uploadResult.url,
+          filename: req.file.originalname
+        }
+      });
+      // #region agent log
+      fetch('http://127.0.0.1:7382/ingest/eee79fb1-b801-4baa-bd86-e0d193626bd1', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'e0ac77' },
+        body: JSON.stringify({
+          sessionId: 'e0ac77',
+          location: 'tasks.js:POST attachments:afterPrisma',
+          message: 'attachment row created',
+          data: { attachmentId: attachment && attachment.id },
+          timestamp: Date.now(),
+          hypothesisId: 'H4'
+        })
+      }).catch(() => {});
+      // #endregion
+    } catch (prismaErr) {
+      // #region agent log
+      fetch('http://127.0.0.1:7382/ingest/eee79fb1-b801-4baa-bd86-e0d193626bd1', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'e0ac77' },
+        body: JSON.stringify({
+          sessionId: 'e0ac77',
+          location: 'tasks.js:POST attachments:prismaErr',
+          message: 'prisma attachment.create failed',
+          data: { msg: prismaErr && prismaErr.message, code: prismaErr && prismaErr.code },
+          timestamp: Date.now(),
+          hypothesisId: 'H4'
+        })
+      }).catch(() => {});
+      // #endregion
+      throw prismaErr;
+    }
 
     await addTaskEvent(taskId, req.user.id, 'FILE_UPLOADED');
 
     res.status(201).json({ attachment });
   } catch (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7382/ingest/eee79fb1-b801-4baa-bd86-e0d193626bd1', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'e0ac77' },
+      body: JSON.stringify({
+        sessionId: 'e0ac77',
+        location: 'tasks.js:POST attachments:catch',
+        message: 'upload attachment error',
+        data: {
+          errMsg: error && error.message,
+          errCode: error && error.code,
+          errName: error && error.name
+        },
+        timestamp: Date.now(),
+        hypothesisId: 'H-catch'
+      })
+    }).catch(() => {});
+    // #endregion
     console.error('Upload attachment error:', error);
     res.status(500).json({ error: 'Failed to upload attachment' });
   }

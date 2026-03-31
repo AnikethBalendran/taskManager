@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { formatInr } from '../utils/currency';
+import { getStatusBadge } from '../utils/taskDisplay';
 import { useNavigate } from 'react-router-dom';
 import { createTask, getTasks, deleteTask, approveTask, rejectTask, getUsers, getTaskHistory, getProfile, updateProfile, uploadTaskAttachment } from '../services/api';
 
@@ -197,11 +198,6 @@ const SupervisorDashboard = ({ user, onLogout }) => {
     }
   };
 
-  const getStatusBadge = (status) => {
-    const statusClass = `status-${status.toLowerCase()}`;
-    return <span className={`status-badge ${statusClass}`}>{status}</span>;
-  };
-
   const filteredTasks = statusFilter === 'ALL' ? tasks : tasks.filter(t => t.status === statusFilter);
 
   const inputClass = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
@@ -380,7 +376,7 @@ const SupervisorDashboard = ({ user, onLogout }) => {
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
-                {s === 'ALL' ? 'All' : s.replace('_', ' ')}
+                {s === 'ALL' ? 'All' : s === 'PENDING' ? 'Not started' : s.replace('_', ' ')}
               </button>
             ))}
           </div>

@@ -338,7 +338,7 @@ const AdminUsersPage = ({ user, onLogout }) => {
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
-                  {s === 'ALL' ? 'All' : s.replace('_', ' ')}
+                  {s === 'ALL' ? 'All' : s === 'PENDING' ? 'Not started' : s.replace('_', ' ')}
                 </button>
               ))}
             </div>

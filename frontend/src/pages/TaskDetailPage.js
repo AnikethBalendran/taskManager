@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { formatInr } from '../utils/currency';
+import { getStatusBadge, formatApprovalStatusLabel } from '../utils/taskDisplay';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   getTask, updateTask, deleteTask, approveTask, rejectTask, submitTask,
@@ -56,7 +57,6 @@ const TaskDetailPage = ({ user }) => {
       capexType: t.capexType || 'NONE',
       capexAmount: t.capexAmount != null ? t.capexAmount : '',
       teamMembers: (t.teamMembers || []).join(', '),
-      completionDetails: t.completionDetails || '',
       status: t.status
     });
   };
@@ -308,10 +308,10 @@ const TaskDetailPage = ({ user }) => {
               {task.title}
             </h1>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className={`status-badge status-${task.status.toLowerCase()}`}>{task.status}</span>
+              {getStatusBadge(task.status)}
               {task.approvalStatus !== 'NONE' && (
                 <span className={`badge-approval badge-approval-${task.approvalStatus.toLowerCase()}`}>
-                  {task.approvalStatus}
+                  {formatApprovalStatusLabel(task.approvalStatus)}
                 </span>
               )}
               {task.isOverdue && (
@@ -460,21 +460,6 @@ const TaskDetailPage = ({ user }) => {
           </div>
         </div>
 
-        {/* Completion */}
-        {(true) && (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-card p-6">
-            <h2 className="text-base font-semibold text-slate-800 mb-4">Completion</h2>
-            <div>
-              <label className={labelClass}>Completion Details</label>
-              {editMode ? (
-                <textarea value={editForm.completionDetails} onChange={e => setEditForm({ ...editForm, completionDetails: e.target.value })} className={`${inputClass} min-h-[80px] resize-y`} />
-              ) : (
-                <p className="text-sm text-slate-800 whitespace-pre-wrap">{task.completionDetails || '—'}</p>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Approval */}
         {task.approvalStatus !== 'NONE' && (
           <div className="bg-white rounded-xl border border-slate-200 shadow-card p-6">
@@ -482,7 +467,7 @@ const TaskDetailPage = ({ user }) => {
             <div className="space-y-3">
               <div>
                 <label className={labelClass}>Status</label>
-                <span className={`badge-approval badge-approval-${task.approvalStatus.toLowerCase()}`}>{task.approvalStatus}</span>
+                <span className={`badge-approval badge-approval-${task.approvalStatus.toLowerCase()}`}>{formatApprovalStatusLabel(task.approvalStatus)}</span>
               </div>
               {task.approvalNotes && (
                 <div>
@@ -494,6 +479,28 @@ const TaskDetailPage = ({ user }) => {
                 <div>
                   <label className={labelClass}>Submitted At</label>
                   <p className="text-sm text-slate-600">{new Date(task.submittedForApprovalAt).toLocaleString()}</p>
+                </div>
+              )}
+              {task.submission?.proofImagePath && (
+                <div>
+                  <label className={labelClass}>Proof image</label>
+                  <div className="mt-2 space-y-2">
+                    <a
+                      href={task.submission.proofImagePath}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary-600 hover:text-primary-700 underline"
+                    >
+                      Open full size in new tab
+                    </a>
+                    <div className="rounded-lg border border-slate-200 overflow-hidden bg-slate-50 inline-block max-w-full">
+                      <img
+                        src={task.submission.proofImagePath}
+                        alt="Submission proof"
+                        className="max-h-80 max-w-full object-contain"
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

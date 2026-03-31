@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { formatInr } from '../utils/currency';
+import { getStatusBadge, formatApprovalStatusLabel } from '../utils/taskDisplay';
 import { useNavigate } from 'react-router-dom';
 import { getTasks, submitTask, getProfile, updateProfile } from '../services/api';
 
@@ -95,18 +96,12 @@ const UserDashboard = ({ user, onLogout }) => {
     }
   };
 
-  const getStatusBadge = (status) => {
-    if (!status) return null;
-    const statusClass = `status-${status.toLowerCase()}`;
-    return <span className={`status-badge ${statusClass}`}>{status}</span>;
-  };
-
   const getApprovalBadge = (approvalStatus) => {
     if (!approvalStatus || approvalStatus === 'NONE') return null;
     const normalized = approvalStatus.toLowerCase();
     return (
       <span className={`badge-approval badge-approval-${normalized}`}>
-        {approvalStatus.replace('_', ' ')}
+        {formatApprovalStatusLabel(approvalStatus)}
       </span>
     );
   };
@@ -195,7 +190,7 @@ const UserDashboard = ({ user, onLogout }) => {
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
-                {s === 'ALL' ? 'All' : s.replace('_', ' ')}
+                {s === 'ALL' ? 'All' : s === 'PENDING' ? 'Not started' : s.replace('_', ' ')}
               </button>
             ))}
           </div>
