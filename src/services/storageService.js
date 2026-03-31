@@ -1,11 +1,8 @@
 const https = require('https');
 const { URL } = require('url');
 const admin = require('firebase-admin');
-const { JWT } = require('google-auth-library');
 
 let firebaseInitialized = false;
-/** Lazy JWT client for GCS REST uploads (avoids @google-cloud/storage stream bugs on some hosts). */
-let gcsJwtClient = null;
 
 // #region agent log
 const agentLog = (location, message, data, hypothesisId) => {
@@ -83,17 +80,13 @@ const initFirebase = () => {
 /**
  * Upload object bytes using GCS JSON API media upload (single POST).
  * Does not use File#createWriteStream / duplexify (avoids "stream was destroyed" on Render).
+ *
+ * OAuth token comes from the same Firebase credential as the rest of the app (jsonwebtoken signing).
+ * A separate google-auth-library JWT hit ERR_OSSL_UNSUPPORTED on some hosts when parsing/signing the key.
  */
-const uploadBufferViaGcsRest = async (bucketName, objectPath, buffer, contentType) => {
-  if (!gcsJwtClient) {
-    const { FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY } = process.env;
-    gcsJwtClient = new JWT({
-      email: FIREBASE_CLIENT_EMAIL,
-      key: FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-      scopes: ['https://www.googleapis.com/auth/devstorage.full_control']
-    });
-  }
-  const { token } = await gcsJwtClient.getAccessToken();
+const uploadBufferViaGcsRest = async (adminInstance, bucketName, objectPath, buffer, contentType) => {
+  const tokenJson = await adminInstance.app().options.credential.getAccessToken();
+  const token = tokenJson && tokenJson.access_token;
   if (!token) {
     throw new Error('Could not obtain access token for storage upload');
   }
@@ -179,7 +172,7 @@ const uploadTaskFile = async (taskId, file) => {
   const fileRef = bucket.file(filePath);
 
   try {
-    await uploadBufferViaGcsRest(bucket.name, filePath, file.buffer, file.mimetype);
+    await uploadBufferViaGcsRest(adminInstance, bucket.name, filePath, file.buffer, file.mimetype);
     // #region agent log
     agentLog('storageService.js:uploadTaskFile:afterSave', 'gcs REST upload ok', { filePath }, 'H2');
     // #endregion
