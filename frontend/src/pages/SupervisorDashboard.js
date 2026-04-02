@@ -1,23 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { formatInr } from '../utils/currency';
-import { getStatusBadge } from '../utils/taskDisplay';
+import { formatDueDate, dueDateColor, getStatusBadge } from '../utils/taskDisplay';
 import { useNavigate } from 'react-router-dom';
-import { createTask, getTasks, deleteTask, approveTask, rejectTask, getUsers, getTaskHistory, getProfile, updateProfile, uploadTaskAttachment } from '../services/api';
-
-const formatDueDate = (deadline) => {
-  const diff = Math.ceil((new Date(deadline) - new Date()) / 86400000);
-  if (diff < 0) return `Overdue by ${Math.abs(diff)} day(s)`;
-  if (diff === 0) return 'Due today';
-  if (diff === 1) return 'Due tomorrow';
-  return `Due in ${diff} days`;
-};
-
-const dueDateColor = (deadline, isOverdue) => {
-  if (isOverdue) return 'text-red-600';
-  const diff = Math.ceil((new Date(deadline) - new Date()) / 86400000);
-  if (diff <= 3) return 'text-amber-600';
-  return 'text-slate-600';
-};
+import { createTask, getTasks, deleteTask, approveTask, rejectTask, getUsers, getProfile, updateProfile, uploadTaskAttachment } from '../services/api';
 
 const SupervisorDashboard = ({ user, onLogout }) => {
   const navigate = useNavigate();
@@ -36,9 +21,6 @@ const SupervisorDashboard = ({ user, onLogout }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
-  const [selectedTaskForHistory, setSelectedTaskForHistory] = useState(null);
-  const [history, setHistory] = useState([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
 
   // Profile modal
   const [showProfile, setShowProfile] = useState(false);
@@ -135,70 +117,45 @@ const SupervisorDashboard = ({ user, onLogout }) => {
   };
 
   const handleApprove = async (taskId) => {
+    setError('');
+    setSuccess('');
     try {
       await approveTask(taskId);
+      setSuccess('Task approved successfully');
       loadTasks();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to approve task');
+      setError(err.response?.data?.error || 'Failed to approve task');
     }
   };
 
   const handleReject = async (taskId) => {
+    setError('');
+    setSuccess('');
     try {
       const feedback = window.prompt('Enter rejection feedback for the user (optional):', '');
       await rejectTask(taskId, feedback || undefined);
+      setSuccess('Task rejected successfully');
       loadTasks();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to reject task');
+      setError(err.response?.data?.error || 'Failed to reject task');
     }
   };
 
   const handleDeleteTask = async (taskId) => {
     if (!window.confirm('Delete this task permanently? This cannot be undone.')) return;
+    setError('');
+    setSuccess('');
     try {
       await deleteTask(taskId);
+      setSuccess('Task deleted');
       loadTasks();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to delete task');
-    }
-  };
-
-  const loadTaskHistory = async (task) => {
-    setSelectedTaskForHistory(task);
-    setHistory([]);
-    setHistoryLoading(true);
-    try {
-      const response = await getTaskHistory(task.id);
-      setHistory(response.events || []);
-    } catch (err) {
-      console.error('Failed to load task history:', err);
-      setHistory([]);
-    } finally {
-      setHistoryLoading(false);
-    }
-  };
-
-  const formatHistoryLabel = (event) => {
-    const dateLabel = new Date(event.createdAt).toLocaleDateString();
-    const actorRole = event.user?.role || 'USER';
-    const actorLabel =
-      actorRole === 'ADMIN' ? 'Admin' : actorRole === 'SUPERVISOR' ? 'Supervisor' : 'User';
-    switch (event.action) {
-      case 'TASK_CREATED': return `${dateLabel} — Task created`;
-      case 'TASK_ASSIGNED': return `${dateLabel} — Task assigned`;
-      case 'TASK_STARTED': return `${dateLabel} — User started task`;
-      case 'TASK_COMPLETED': return `${dateLabel} — User marked task as completed`;
-      case 'TASK_SUBMITTED': return `${dateLabel} — User submitted task for approval`;
-      case 'STATUS_UPDATE': return `${dateLabel} — ${actorLabel} posted a status update`;
-      case 'TASK_APPROVED': return `${dateLabel} — ${actorLabel} approved task`;
-      case 'TASK_REJECTED': return `${dateLabel} — ${actorLabel} rejected task`;
-      case 'TASK_REOPENED': return `${dateLabel} — Task reopened for corrections`;
-      case 'FILE_UPLOADED': return `${dateLabel} — File uploaded`;
-      default: return `${dateLabel} — ${event.action}`;
+      setError(err.response?.data?.error || 'Failed to delete task');
     }
   };
 
   const filteredTasks = statusFilter === 'ALL' ? tasks : tasks.filter(t => t.status === statusFilter);
+  const assignedToMeTasks = filteredTasks.filter((t) => t.assignedToId === user.id);
 
   const inputClass = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
   const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
@@ -213,8 +170,11 @@ const SupervisorDashboard = ({ user, onLogout }) => {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <h1 className="text-xl font-semibold text-slate-800">Supervisor Dashboard</h1>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <span className="text-sm text-slate-600">Welcome, {user.email}</span>
+              <button type="button" onClick={() => navigate('/tasks')} className={btnSecondary}>
+                Find tasks
+              </button>
               <button type="button" onClick={openProfile} className={btnSecondary}>My Profile</button>
               <button type="button" onClick={onLogout} className={btnSecondary}>Logout</button>
             </div>
@@ -258,16 +218,23 @@ const SupervisorDashboard = ({ user, onLogout }) => {
         </div>
       )}
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {error && !showCreateForm && (
+          <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>
+        )}
+        {success && !showCreateForm && (
+          <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">{success}</div>
+        )}
+
         <div className="bg-white rounded-xl shadow-card border border-slate-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <h2 className="text-lg font-semibold text-slate-800">Tasks</h2>
+            <h2 className="text-lg font-semibold text-slate-800">Create Task</h2>
             <button
               type="button"
-              onClick={() => setShowCreateForm(!showCreateForm)}
+              onClick={() => { setShowCreateForm(!showCreateForm); setError(''); setSuccess(''); }}
               className={btnPrimary}
             >
-              {showCreateForm ? 'Cancel' : 'Create Task'}
+              {showCreateForm ? 'Cancel' : 'New Task'}
             </button>
           </div>
 
@@ -362,8 +329,13 @@ const SupervisorDashboard = ({ user, onLogout }) => {
               </div>
             </form>
           )}
+        </div>
 
-          {/* Status filter chips */}
+        <div className="bg-white rounded-xl shadow-card border border-slate-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-200">
+            <h2 className="text-lg font-semibold text-slate-800">Tasks assigned to you</h2>
+            <p className="text-sm text-slate-500 mt-1">Work assigned to you by an admin or that you picked up as assignee.</p>
+          </div>
           <div className="px-6 py-3 border-b border-slate-100 flex gap-2 flex-wrap">
             {['ALL', 'PENDING', 'IN_PROGRESS', 'COMPLETED'].map(s => (
               <button
@@ -380,13 +352,11 @@ const SupervisorDashboard = ({ user, onLogout }) => {
               </button>
             ))}
           </div>
-
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
                   <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Title</th>
-                  <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Your role</th>
                   <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Assigned To</th>
                   <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Deadline</th>
                   <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
@@ -395,7 +365,7 @@ const SupervisorDashboard = ({ user, onLogout }) => {
                 </tr>
               </thead>
               <tbody>
-                {filteredTasks.map((task) => (
+                {assignedToMeTasks.map((task) => (
                   <tr key={task.id} className="border-b border-slate-100 hover:bg-slate-50/50">
                     <td className="px-6 py-3 text-sm">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -404,16 +374,10 @@ const SupervisorDashboard = ({ user, onLogout }) => {
                           <span className="font-mono text-xs bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 text-slate-500">{task.capId}</span>
                         )}
                       </div>
-                      <span className="text-slate-600 text-sm">{task.description}</span>
                     </td>
                     <td className="px-6 py-3 text-sm text-slate-600">
-                      {task.assignedById === user.id ? (
-                        <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">Creator</span>
-                      ) : (
-                        <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-primary-50 text-primary-800 border border-primary-100">Assignee</span>
-                      )}
+                      {task.assignedTo?.email || task.assignedBy?.email || '—'}
                     </td>
-                    <td className="px-6 py-3 text-sm text-slate-600">{task.assignedTo.email}</td>
                     <td className={`px-6 py-3 text-sm ${dueDateColor(task.deadline, task.isOverdue)}`}>
                       {formatDueDate(task.deadline)}
                     </td>
@@ -431,13 +395,6 @@ const SupervisorDashboard = ({ user, onLogout }) => {
                           className={btnSecondary}
                         >
                           View
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => loadTaskHistory(task)}
-                          className={btnSecondary}
-                        >
-                          History
                         </button>
                         {task.assignedById === user.id && (
                           <button
@@ -468,45 +425,119 @@ const SupervisorDashboard = ({ user, onLogout }) => {
                     </td>
                   </tr>
                 ))}
+                {assignedToMeTasks.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-4 text-sm text-slate-500 text-center">No tasks assigned to you.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
         </div>
 
-        {selectedTaskForHistory && (
-          <div className="mt-6 bg-white rounded-xl shadow-card border border-slate-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-semibold text-slate-800">
-                  Activity History: {selectedTaskForHistory.title}
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Assigned to {selectedTaskForHistory.assignedTo.email}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => { setSelectedTaskForHistory(null); setHistory([]); }}
-                className={btnSecondary}
-              >
-                Close
-              </button>
-            </div>
-            <div className="p-6">
-              {historyLoading ? (
-                <p className="text-sm text-slate-500">Loading history...</p>
-              ) : history.length === 0 ? (
-                <p className="text-xs text-slate-500">No activity recorded yet.</p>
-              ) : (
-                <ul className="space-y-1 text-xs text-slate-700">
-                  {history.map((event) => (
-                    <li key={event.id}>{formatHistoryLabel(event)}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
+        <div className="bg-white rounded-xl shadow-card border border-slate-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-200">
+            <h2 className="text-lg font-semibold text-slate-800">All tasks</h2>
+            <p className="text-sm text-slate-500 mt-1">Every task you create or that involves you (same filters as above).</p>
           </div>
-        )}
+          <div className="px-6 py-3 border-b border-slate-100 flex gap-2 flex-wrap">
+            {['ALL', 'PENDING', 'IN_PROGRESS', 'COMPLETED'].map(s => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setStatusFilter(s)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  statusFilter === s
+                    ? 'bg-primary-500 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {s === 'ALL' ? 'All' : s === 'PENDING' ? 'Not started' : s.replace('_', ' ')}
+              </button>
+            ))}
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50">
+                  <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Title</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Assigned To</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Deadline</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">CAPEX/REVEX</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredTasks.map((task) => (
+                  <tr key={task.id} className="border-b border-slate-100 hover:bg-slate-50/50">
+                    <td className="px-6 py-3 text-sm">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <strong className="text-slate-800">{task.title}</strong>
+                        {task.capId && (
+                          <span className="font-mono text-xs bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 text-slate-500">{task.capId}</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-3 text-sm text-slate-600">
+                      {task.assignedTo?.email || task.assignedBy?.email || '—'}
+                    </td>
+                    <td className={`px-6 py-3 text-sm ${dueDateColor(task.deadline, task.isOverdue)}`}>
+                      {formatDueDate(task.deadline)}
+                    </td>
+                    <td className="px-6 py-3">{getStatusBadge(task.status)}</td>
+                    <td className="px-6 py-3 text-sm text-slate-600">
+                      {task.capexType !== 'NONE' ? (
+                        <span>{task.capexType}{task.capexAmount != null ? ` ${formatInr(task.capexAmount)}` : ''}</span>
+                      ) : '—'}
+                    </td>
+                    <td className="px-6 py-3">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/tasks/${task.id}`)}
+                          className={btnSecondary}
+                        >
+                          View
+                        </button>
+                        {task.assignedById === user.id && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTask(task.id)}
+                            className={btnDanger}
+                          >
+                            Delete
+                          </button>
+                        )}
+                        {task.approvalStatus === 'PENDING' && task.assignedById === user.id && (
+                          <>
+                            {task.submission?.proofImagePath && (
+                              <a
+                                href={task.submission.proofImagePath}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={btnSecondary}
+                              >
+                                View Proof
+                              </a>
+                            )}
+                            <button type="button" onClick={() => handleApprove(task.id)} className={btnSuccess}>Approve</button>
+                            <button type="button" onClick={() => handleReject(task.id)} className={btnDanger}>Reject</button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filteredTasks.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-4 text-sm text-slate-500 text-center">No tasks found.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );

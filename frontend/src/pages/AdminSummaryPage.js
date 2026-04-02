@@ -85,6 +85,13 @@ const AdminSummaryPage = ({ user, onLogout }) => {
               >
                 Manage Tasks
               </button>
+              <button
+                type="button"
+                onClick={() => navigate('/tasks')}
+                className={btnSecondary}
+              >
+                Find tasks
+              </button>
               <button type="button" onClick={onLogout} className={btnSecondary}>
                 Logout
               </button>

@@ -24,6 +24,8 @@ const UserDashboard = ({ user, onLogout }) => {
   const [tasks, setTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState(null);
   const [proofImage, setProofImage] = useState(null);
+  const [submitCompletionDetails, setSubmitCompletionDetails] = useState('');
+  const [submitRemarks, setSubmitRemarks] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -38,6 +40,13 @@ const UserDashboard = ({ user, onLogout }) => {
   useEffect(() => {
     loadTasks();
   }, []);
+
+  useEffect(() => {
+    if (selectedTask) {
+      setSubmitCompletionDetails(selectedTask.completionDetails || '');
+      setSubmitRemarks(selectedTask.remarks || '');
+    }
+  }, [selectedTask]);
 
   const loadTasks = async () => {
     try {
@@ -85,7 +94,10 @@ const UserDashboard = ({ user, onLogout }) => {
     setLoading(true);
 
     try {
-      await submitTask(selectedTask.id, proofImage);
+      await submitTask(selectedTask.id, proofImage, {
+        completionDetails: submitCompletionDetails,
+        remarks: submitRemarks
+      });
       setSelectedTask(null);
       setProofImage(null);
       loadTasks();
@@ -126,8 +138,11 @@ const UserDashboard = ({ user, onLogout }) => {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <h1 className="text-xl font-semibold text-slate-800">User Dashboard</h1>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <span className="text-sm text-slate-600">Welcome, {user.email}</span>
+              <button type="button" onClick={() => navigate('/tasks')} className={btnSecondary}>
+                Find tasks
+              </button>
               <button type="button" onClick={openProfile} className={btnSecondary}>My Profile</button>
               <button type="button" onClick={onLogout} className={btnSecondary}>Logout</button>
             </div>
@@ -293,6 +308,40 @@ const UserDashboard = ({ user, onLogout }) => {
               )}
             </div>
             <form onSubmit={handleSubmit} className="p-6 pt-2">
+              {(selectedTask.capexType === 'CAPEX' || selectedTask.capexType === 'REVEX') &&
+                (selectedTask.capexAmount == null ||
+                  !isFinite(Number(selectedTask.capexAmount)) ||
+                  Number(selectedTask.capexAmount) < 0) && (
+                <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  Set a valid expenditure amount on the task (open View → Edit Financial), save, then submit.
+                </div>
+              )}
+              <div className="mb-4">
+                <label htmlFor="submit-completion" className={labelClass}>
+                  Completion details (required)
+                </label>
+                <textarea
+                  id="submit-completion"
+                  value={submitCompletionDetails}
+                  onChange={(e) => setSubmitCompletionDetails(e.target.value)}
+                  className={`${inputClass} min-h-[100px] resize-y`}
+                  placeholder="Describe the work completed"
+                  required
+                />
+              </div>
+              <div className="mb-4">
+                <label htmlFor="submit-remarks" className={labelClass}>
+                  Remarks (required)
+                </label>
+                <textarea
+                  id="submit-remarks"
+                  value={submitRemarks}
+                  onChange={(e) => setSubmitRemarks(e.target.value)}
+                  className={`${inputClass} min-h-[80px] resize-y`}
+                  placeholder="Additional remarks"
+                  required
+                />
+              </div>
               {selectedTask.requiresProof && (
                 <div className="mb-4">
                   <label htmlFor="proof-image" className="block text-sm font-medium text-slate-700 mb-1">

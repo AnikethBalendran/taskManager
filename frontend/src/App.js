@@ -6,6 +6,7 @@ import AdminTasksPage from './pages/AdminTasksPage';
 import SupervisorDashboard from './pages/SupervisorDashboard';
 import UserDashboard from './pages/UserDashboard';
 import TaskDetailPage from './pages/TaskDetailPage';
+import TasksBrowsePage from './pages/TasksBrowsePage';
 import AdminSummaryPage from './pages/AdminSummaryPage';
 import { getCurrentUser } from './services/api';
 
@@ -114,6 +115,10 @@ function App() {
               <Navigate to="/login" replace />
             )
           }
+        />
+        <Route
+          path="/tasks"
+          element={user ? <TasksBrowsePage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />}
         />
         <Route
           path="/tasks/:id"

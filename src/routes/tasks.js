@@ -675,6 +675,26 @@ router.post(
       return res.status(400).json({ error: 'Rejected tasks must be in progress before resubmitting' });
     }
 
+    const rawCompletion =
+      typeof req.body?.completionDetails === 'string' ? req.body.completionDetails.trim() : '';
+    const rawRemarks = typeof req.body?.remarks === 'string' ? req.body.remarks.trim() : '';
+    if (!rawCompletion) {
+      return res.status(400).json({ error: 'Completion details are required' });
+    }
+    if (!rawRemarks) {
+      return res.status(400).json({ error: 'Remarks are required' });
+    }
+
+    if (task.capexType === 'CAPEX' || task.capexType === 'REVEX') {
+      const amt = task.capexAmount;
+      if (amt == null || !isFinite(Number(amt)) || Number(amt) < 0) {
+        return res.status(400).json({
+          error:
+            'Expenditure amount must be set on the task before submitting (edit Financial section and save)'
+        });
+      }
+    }
+
     // Check if proof is required
     const hasExistingProof = !!task.submission?.proofImagePath;
     if (task.requiresProof && !req.file && !hasExistingProof) {
@@ -689,6 +709,8 @@ router.post(
     const updatedTask = await prisma.task.update({
       where: { id: taskId },
       data: {
+        completionDetails: rawCompletion,
+        remarks: rawRemarks,
         status: 'COMPLETED',
         approvalStatus: 'PENDING',
         submittedForApprovalAt: new Date(),

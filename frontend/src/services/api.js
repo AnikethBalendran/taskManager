@@ -85,11 +85,13 @@ export const getAdminSummary = async ({ from, to }) => {
   return response.data;
 };
 
-export const submitTask = async (taskId, proofImage) => {
+export const submitTask = async (taskId, proofImage, { completionDetails, remarks } = {}) => {
   const formData = new FormData();
   if (proofImage) {
     formData.append('proofImage', proofImage);
   }
+  formData.append('completionDetails', completionDetails ?? '');
+  formData.append('remarks', remarks ?? '');
 
   const response = await axios.post(
     `${API_BASE_URL}/tasks/${taskId}/submit`,

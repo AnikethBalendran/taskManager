@@ -278,8 +278,11 @@ const AdminTasksPage = ({ user, onLogout }) => {
         </div>
 
         <div className="bg-white rounded-xl shadow-card border border-slate-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-200">
+          <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <h2 className="text-lg font-semibold text-slate-800">All Tasks</h2>
+            <button type="button" onClick={() => navigate('/tasks')} className={btnSecondary}>
+              Find tasks (search & browse)
+            </button>
           </div>
 
           <div className="px-6 py-3 border-b border-slate-100 flex gap-2 flex-wrap">

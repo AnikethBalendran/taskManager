@@ -22,6 +22,8 @@ const TaskDetailPage = ({ user }) => {
   const [uploading, setUploading] = useState(false);
   const [proofImage, setProofImage] = useState(null);
   const [showSubmitForm, setShowSubmitForm] = useState(false);
+  const [submitCompletionDetails, setSubmitCompletionDetails] = useState('');
+  const [submitRemarks, setSubmitRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [updateMessage, setUpdateMessage] = useState('');
   const [postingUpdate, setPostingUpdate] = useState(false);
@@ -30,6 +32,13 @@ const TaskDetailPage = ({ user }) => {
     loadTask();
     // eslint-disable-next-line
   }, [id]);
+
+  useEffect(() => {
+    if (showSubmitForm && task) {
+      setSubmitCompletionDetails(task.completionDetails || '');
+      setSubmitRemarks(task.remarks || '');
+    }
+  }, [showSubmitForm, task]);
 
   const loadTask = async () => {
     try {
@@ -57,7 +66,8 @@ const TaskDetailPage = ({ user }) => {
       capexType: t.capexType || 'NONE',
       capexAmount: t.capexAmount != null ? t.capexAmount : '',
       teamMembers: (t.teamMembers || []).join(', '),
-      status: t.status
+      status: t.status,
+      completionDetails: t.completionDetails || ''
     });
   };
 
@@ -166,7 +176,10 @@ const TaskDetailPage = ({ user }) => {
     setSubmitting(true);
     setError('');
     try {
-      const res = await submitTask(id, proofImage);
+      const res = await submitTask(id, proofImage, {
+        completionDetails: submitCompletionDetails,
+        remarks: submitRemarks
+      });
       setTask(res.task);
       setShowSubmitForm(false);
       setProofImage(null);
@@ -405,6 +418,19 @@ const TaskDetailPage = ({ user }) => {
                 <input type="text" value={editForm.teamMembers} onChange={e => setEditForm({ ...editForm, teamMembers: e.target.value })} placeholder="Comma-separated names" className={inputClass} />
               ) : (
                 <p className="text-sm text-slate-800">{task.teamMembers?.length ? task.teamMembers.join(', ') : '—'}</p>
+              )}
+            </div>
+            <div className="md:col-span-2">
+              <label className={labelClass}>Completion details</label>
+              {editMode ? (
+                <textarea
+                  value={editForm.completionDetails}
+                  onChange={e => setEditForm({ ...editForm, completionDetails: e.target.value })}
+                  className={`${inputClass} min-h-[80px] resize-y`}
+                  placeholder="Describe work completed…"
+                />
+              ) : (
+                <p className="text-sm text-slate-800 whitespace-pre-wrap">{task.completionDetails || '—'}</p>
               )}
             </div>
             <div className="md:col-span-2">
@@ -657,6 +683,32 @@ const TaskDetailPage = ({ user }) => {
                   <p className="text-sm text-red-700 whitespace-pre-line">{task.approvalNotes}</p>
                 </div>
               )}
+              {(task.capexType === 'CAPEX' || task.capexType === 'REVEX') &&
+                (task.capexAmount == null || !isFinite(Number(task.capexAmount)) || Number(task.capexAmount) < 0) && (
+                <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  Set a valid expenditure amount in Financial below (Edit task), save, then submit.
+                </div>
+              )}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Completion details (required)</label>
+                <textarea
+                  value={submitCompletionDetails}
+                  onChange={e => setSubmitCompletionDetails(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[100px] resize-y"
+                  placeholder="Describe the work completed"
+                  required
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Remarks (required)</label>
+                <textarea
+                  value={submitRemarks}
+                  onChange={e => setSubmitRemarks(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[80px] resize-y"
+                  placeholder="Additional remarks"
+                  required
+                />
+              </div>
               {task.requiresProof && (
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Proof Image (Required)</label>
@@ -677,7 +729,11 @@ const TaskDetailPage = ({ user }) => {
                 <button type="submit" disabled={submitting} className={btnPrimary}>
                   {submitting ? 'Submitting...' : task.approvalStatus === 'REJECTED' ? 'Resubmit Task' : 'Submit Task'}
                 </button>
-                <button type="button" onClick={() => { setShowSubmitForm(false); setProofImage(null); }} className={btnSecondary}>
+                <button
+                  type="button"
+                  onClick={() => { setShowSubmitForm(false); setProofImage(null); }}
+                  className={btnSecondary}
+                >
                   Cancel
                 </button>
               </div>

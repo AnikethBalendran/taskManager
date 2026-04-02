@@ -33,6 +33,12 @@ const AdminManageHeader = ({ user, onLogout, onOpenProfile, activeSection }) => 
               >
                 Tasks
               </NavLink>
+              <NavLink
+                to="/tasks"
+                className={({ isActive }) => `${linkBase} ${isActive ? linkActive : linkInactive}`}
+              >
+                Find tasks
+              </NavLink>
             </nav>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
