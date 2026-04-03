@@ -42,11 +42,10 @@ export const getUsers = async () => {
   return response.data;
 };
 
-export const updateUser = async (userId, email, role) => {
-  const response = await axios.put(`${API_BASE_URL}/users/${userId}`, {
-    email,
-    role
-  });
+export const updateUser = async (userId, email, role, password) => {
+  const body = { email, role };
+  if (password) body.password = password;
+  const response = await axios.put(`${API_BASE_URL}/users/${userId}`, body);
   return response.data;
 };
 
@@ -82,6 +81,15 @@ export const getAdminSummary = async ({ from, to }) => {
   if (from) params.append('from', from);
   if (to) params.append('to', to);
   const response = await axios.get(`${API_BASE_URL}/tasks/summary?${params.toString()}`);
+  return response.data;
+};
+
+export const getAdminSummaryDrilldown = async ({ from, to, category }) => {
+  const params = new URLSearchParams();
+  if (from) params.append('from', from);
+  if (to) params.append('to', to);
+  if (category) params.append('category', category);
+  const response = await axios.get(`${API_BASE_URL}/tasks/summary/drilldown?${params.toString()}`);
   return response.data;
 };
 

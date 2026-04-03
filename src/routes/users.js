@@ -169,12 +169,12 @@ router.put('/me', async (req, res) => {
 
 /**
  * PUT /users/:id
- * Update user email and role (Admin only)
+ * Update user email and role (Admin only). Optional body.password sets a new password (min 8 chars).
  */
 router.put('/:id', authorize('ADMIN'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { email, role } = req.body;
+    const { email, role, password } = req.body;
 
     if (!email || !role) {
       return res.status(400).json({ error: 'Email and role are required' });
@@ -182,6 +182,12 @@ router.put('/:id', authorize('ADMIN'), async (req, res) => {
 
     if (!['ADMIN', 'SUPERVISOR', 'USER'].includes(role)) {
       return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    if (password !== undefined && password !== null && password !== '') {
+      if (typeof password !== 'string' || password.length < 8) {
+        return res.status(400).json({ error: 'Password must be at least 8 characters' });
+      }
     }
 
     // Check if user exists
@@ -204,13 +210,15 @@ router.put('/:id', authorize('ADMIN'), async (req, res) => {
       }
     }
 
+    const data = { email, role };
+    if (password !== undefined && password !== null && password !== '') {
+      data.passwordHash = await bcrypt.hash(password, 10);
+    }
+
     // Update user
     const updatedUser = await prisma.user.update({
       where: { id },
-      data: {
-        email,
-        role
-      },
+      data,
       select: {
         id: true,
         email: true,

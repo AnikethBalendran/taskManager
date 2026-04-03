@@ -274,6 +274,7 @@ router.get('/', async (req, res) => {
  * Admin summary of tasks and expenditure over a createdAt time range.
  * counts.completed = approvalStatus APPROVED. counts.pending = submitted, awaiting supervisor.
  * counts.inProgress = not yet submitted for approval (NONE) or rejected and back with assignee (REJECTED).
+ * counts.overdue = deadline in the past, status not COMPLETED (matches task list isOverdue).
  * Query params:
  *   from (ISO string) - inclusive lower bound
  *   to   (ISO string) - exclusive upper bound
@@ -301,7 +302,8 @@ router.get('/summary', authorize('ADMIN'), async (req, res) => {
     };
 
     // inProgress = not submitted for approval yet (NONE) or rejected pending resubmit (REJECTED), not workflow IN_PROGRESS
-    const [createdCount, inProgressCount, completedCount, pendingCount, capexAgg, revexAgg] = await Promise.all([
+    const [createdCount, inProgressCount, completedCount, pendingCount, overdueCount, capexAgg, revexAgg] =
+      await Promise.all([
       prisma.task.count({ where: baseWhere }),
       prisma.task.count({
         where: {
@@ -315,6 +317,13 @@ router.get('/summary', authorize('ADMIN'), async (req, res) => {
           ...baseWhere,
           approvalStatus: 'PENDING',
           submittedForApprovalAt: { not: null }
+        }
+      }),
+      prisma.task.count({
+        where: {
+          ...baseWhere,
+          deadline: { lt: now },
+          status: { not: 'COMPLETED' }
         }
       }),
       prisma.task.aggregate({
@@ -349,7 +358,8 @@ router.get('/summary', authorize('ADMIN'), async (req, res) => {
         created: createdCount,
         inProgress: inProgressCount,
         completed: completedCount,
-        pending: pendingCount
+        pending: pendingCount,
+        overdue: overdueCount
       },
       financial: {
         capexTotal,
@@ -360,6 +370,110 @@ router.get('/summary', authorize('ADMIN'), async (req, res) => {
   } catch (error) {
     console.error('Get tasks summary error:', error);
     res.status(500).json({ error: 'Failed to fetch tasks summary' });
+  }
+});
+
+const summaryDrilldownInclude = {
+  assignedTo: {
+    select: {
+      id: true,
+      email: true
+    }
+  },
+  assignedBy: {
+    select: {
+      id: true,
+      email: true
+    }
+  },
+  submission: true
+};
+
+/**
+ * GET /tasks/summary/drilldown
+ * Admin: list tasks for a summary category over the same createdAt range as GET /tasks/summary.
+ * Query: from, to (ISO), category (created|inProgress|completed|pending|overdue|capex|revex|capexOrRevex)
+ */
+router.get('/summary/drilldown', authorize('ADMIN'), async (req, res) => {
+  try {
+    const now = new Date();
+    const defaultTo = now;
+    const defaultFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const from = req.query.from ? new Date(req.query.from) : defaultFrom;
+    const to = req.query.to ? new Date(req.query.to) : defaultTo;
+    const category = req.query.category;
+
+    if (isNaN(from.getTime()) || isNaN(to.getTime())) {
+      return res.status(400).json({ error: 'Invalid from/to date range' });
+    }
+
+    if (!category || typeof category !== 'string') {
+      return res.status(400).json({ error: 'category query parameter is required' });
+    }
+
+    const baseWhere = {
+      createdAt: {
+        gte: from,
+        lt: to
+      },
+      archived: false
+    };
+
+    let where;
+    switch (category) {
+      case 'created':
+        where = baseWhere;
+        break;
+      case 'inProgress':
+        where = {
+          ...baseWhere,
+          approvalStatus: { in: ['NONE', 'REJECTED'] }
+        };
+        break;
+      case 'completed':
+        where = { ...baseWhere, approvalStatus: 'APPROVED' };
+        break;
+      case 'pending':
+        where = {
+          ...baseWhere,
+          approvalStatus: 'PENDING',
+          submittedForApprovalAt: { not: null }
+        };
+        break;
+      case 'overdue':
+        where = {
+          ...baseWhere,
+          deadline: { lt: now },
+          status: { not: 'COMPLETED' }
+        };
+        break;
+      case 'capex':
+        where = { ...baseWhere, capexType: 'CAPEX' };
+        break;
+      case 'revex':
+        where = { ...baseWhere, capexType: 'REVEX' };
+        break;
+      case 'capexOrRevex':
+        where = {
+          ...baseWhere,
+          capexType: { in: ['CAPEX', 'REVEX'] }
+        };
+        break;
+      default:
+        return res.status(400).json({ error: 'Invalid category' });
+    }
+
+    const tasks = await prisma.task.findMany({
+      where,
+      include: summaryDrilldownInclude,
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({ tasks: withOverdueFlagForList(tasks) });
+  } catch (error) {
+    console.error('Get tasks summary drilldown error:', error);
+    res.status(500).json({ error: 'Failed to fetch summary drilldown' });
   }
 });
 

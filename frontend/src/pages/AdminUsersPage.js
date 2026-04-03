@@ -99,7 +99,7 @@ const AdminUsersPage = ({ user, onLogout }) => {
   };
 
   const handleEditUser = (userToEdit) => {
-    setEditingUser(userToEdit);
+    setEditingUser({ ...userToEdit, newPassword: '', confirmPassword: '' });
     setError('');
     setSuccess('');
   };
@@ -108,10 +108,21 @@ const AdminUsersPage = ({ user, onLogout }) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    const pwd = (editingUser.newPassword || '').trim();
+    if (pwd) {
+      if (pwd !== (editingUser.confirmPassword || '').trim()) {
+        setError('Passwords do not match');
+        return;
+      }
+      if (pwd.length < 8) {
+        setError('Password must be at least 8 characters');
+        return;
+      }
+    }
     setLoading(true);
 
     try {
-      await updateUser(editingUser.id, editingUser.email, editingUser.role);
+      await updateUser(editingUser.id, editingUser.email, editingUser.role, pwd || undefined);
       setSuccess('User updated successfully');
       setEditingUser(null);
       loadUsers();
@@ -214,7 +225,7 @@ const AdminUsersPage = ({ user, onLogout }) => {
       )}
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {error && !showCreateForm && !editingUser && (
+        {error && !showCreateForm && (
           <div className="mb-4 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>
         )}
         {success && !showCreateForm && !editingUser && (
@@ -272,9 +283,32 @@ const AdminUsersPage = ({ user, onLogout }) => {
               <tbody>
                 {users.map((u) => (
                   <tr key={u.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                    <td className="px-6 py-3 text-sm text-slate-800">
+                    <td className="px-6 py-3 text-sm text-slate-800 align-top">
                       {editingUser?.id === u.id ? (
-                        <input type="email" value={editingUser.email} onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
+                        <div className="space-y-2 max-w-xs">
+                          <input type="email" value={editingUser.email} onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
+                          <div>
+                            <label className="block text-xs font-medium text-slate-600 mb-0.5">New password (optional)</label>
+                            <input
+                              type="password"
+                              autoComplete="new-password"
+                              value={editingUser.newPassword || ''}
+                              onChange={(e) => setEditingUser({ ...editingUser, newPassword: e.target.value })}
+                              className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                              placeholder="Leave blank to keep current"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-600 mb-0.5">Confirm new password</label>
+                            <input
+                              type="password"
+                              autoComplete="new-password"
+                              value={editingUser.confirmPassword || ''}
+                              onChange={(e) => setEditingUser({ ...editingUser, confirmPassword: e.target.value })}
+                              className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                            />
+                          </div>
+                        </div>
                       ) : u.email}
                     </td>
                     <td className="px-6 py-3 text-sm text-slate-800">
@@ -289,9 +323,11 @@ const AdminUsersPage = ({ user, onLogout }) => {
                     <td className="px-6 py-3 text-sm text-slate-600">{new Date(u.createdAt).toLocaleString()}</td>
                     <td className="px-6 py-3">
                       {editingUser?.id === u.id ? (
-                        <div className="flex gap-2">
-                          <button type="button" onClick={handleUpdateUser} className={btnSuccess}>Save</button>
-                          <button type="button" onClick={() => { setEditingUser(null); setError(''); setSuccess(''); }} className={btnSecondary}>Cancel</button>
+                        <div className="flex flex-col gap-2 items-start">
+                          <div className="flex gap-2">
+                            <button type="button" onClick={handleUpdateUser} className={btnSuccess}>Save</button>
+                            <button type="button" onClick={() => { setEditingUser(null); setError(''); setSuccess(''); }} className={btnSecondary}>Cancel</button>
+                          </div>
                         </div>
                       ) : (
                         <div className="flex flex-wrap gap-2">

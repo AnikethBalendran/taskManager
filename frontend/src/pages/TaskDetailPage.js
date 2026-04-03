@@ -3,7 +3,7 @@ import { formatInr } from '../utils/currency';
 import { getStatusBadge, formatApprovalStatusLabel } from '../utils/taskDisplay';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  getTask, updateTask, deleteTask, approveTask, rejectTask, submitTask,
+  getTask, getUsers, updateTask, deleteTask, approveTask, rejectTask, submitTask,
   uploadTaskAttachment, deleteAttachment, createTaskUpdate
 } from '../services/api';
 
@@ -27,11 +27,27 @@ const TaskDetailPage = ({ user }) => {
   const [submitting, setSubmitting] = useState(false);
   const [updateMessage, setUpdateMessage] = useState('');
   const [postingUpdate, setPostingUpdate] = useState(false);
+  const [assignableUsers, setAssignableUsers] = useState([]);
 
   useEffect(() => {
     loadTask();
     // eslint-disable-next-line
   }, [id]);
+
+  useEffect(() => {
+    if (user.role !== 'ADMIN' && user.role !== 'SUPERVISOR') return undefined;
+    let cancelled = false;
+    getUsers()
+      .then((res) => {
+        if (!cancelled) setAssignableUsers(res.users || []);
+      })
+      .catch(() => {
+        if (!cancelled) setAssignableUsers([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user.role]);
 
   useEffect(() => {
     if (showSubmitForm && task) {
@@ -101,6 +117,37 @@ const TaskDetailPage = ({ user }) => {
     if (user.role === 'ADMIN') return true;
     if (user.role === 'SUPERVISOR' && task.assignedById === user.id) return true;
     return false;
+  };
+
+  const assigneeSelectOptions = () => {
+    if (!task) return [];
+    if (user.role === 'ADMIN') {
+      let opts = assignableUsers.filter((u) =>
+        ['ADMIN', 'SUPERVISOR', 'USER'].includes(u.role) && u.id !== user.id
+      );
+      if (task.assignedToId && !opts.some((u) => u.id === task.assignedToId)) {
+        const cur =
+          assignableUsers.find((u) => u.id === task.assignedToId) ||
+          (task.assignedTo?.id
+            ? { id: task.assignedTo.id, email: task.assignedTo.email, role: 'USER' }
+            : null);
+        if (cur) opts = [cur, ...opts];
+      }
+      return opts;
+    }
+    if (user.role === 'SUPERVISOR') {
+      let opts = assignableUsers.filter((u) => u.role === 'USER');
+      if (task.assignedToId && !opts.some((u) => u.id === task.assignedToId)) {
+        const cur =
+          assignableUsers.find((u) => u.id === task.assignedToId) ||
+          (task.assignedTo?.id
+            ? { id: task.assignedTo.id, email: task.assignedTo.email, role: 'USER' }
+            : null);
+        if (cur) opts = [cur, ...opts];
+      }
+      return opts;
+    }
+    return [];
   };
 
   const canDeleteTask = () => {
@@ -360,7 +407,21 @@ const TaskDetailPage = ({ user }) => {
             </div>
             <div>
               <label className={labelClass}>Assigned To</label>
-              <p className="text-sm text-slate-800">{task.assignedTo?.email}</p>
+              {editMode && isManagerEditor() ? (
+                <select
+                  value={editForm.assignedToId || ''}
+                  onChange={(e) => setEditForm({ ...editForm, assignedToId: e.target.value })}
+                  className={inputClass}
+                >
+                  {assigneeSelectOptions().map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.email} ({u.role})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="text-sm text-slate-800">{task.assignedTo?.email}</p>
+              )}
             </div>
             <div className="md:col-span-2">
               <label className={labelClass}>Description</label>
