@@ -8,6 +8,7 @@ import {
   exclusiveEndAfterInclusiveLocalDay
 } from '../utils/adminSummaryRange';
 import { formatDueDate, dueDateColor, getStatusBadge } from '../utils/taskDisplay';
+import { downloadTasksExcel } from '../utils/exportExcel';
 
 const AdminSummaryPage = ({ user, onLogout }) => {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ const AdminSummaryPage = ({ user, onLogout }) => {
 
   const [drilldownOpen, setDrilldownOpen] = useState(false);
   const [drilldownTitle, setDrilldownTitle] = useState('');
+  const [drilldownCategory, setDrilldownCategory] = useState('');
   const [drilldownTasks, setDrilldownTasks] = useState([]);
   const [drilldownLoading, setDrilldownLoading] = useState(false);
   const [drilldownError, setDrilldownError] = useState('');
@@ -78,6 +80,7 @@ const AdminSummaryPage = ({ user, onLogout }) => {
       return;
     }
     setDrilldownTitle(title);
+    setDrilldownCategory(category);
     setDrilldownOpen(true);
     setDrilldownError('');
     setDrilldownTasks([]);
@@ -99,6 +102,7 @@ const AdminSummaryPage = ({ user, onLogout }) => {
   const closeDrilldown = () => {
     setDrilldownOpen(false);
     setDrilldownTitle('');
+    setDrilldownCategory('');
     setDrilldownTasks([]);
     setDrilldownError('');
   };
@@ -376,13 +380,28 @@ const AdminSummaryPage = ({ user, onLogout }) => {
             aria-labelledby="drilldown-heading"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-3 shrink-0">
+            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-3 shrink-0 flex-wrap">
               <h2 id="drilldown-heading" className="text-lg font-semibold text-slate-800">
                 {drilldownTitle}
               </h2>
-              <button type="button" onClick={closeDrilldown} className={btnSecondary}>
-                Close
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={drilldownLoading || !drilldownTasks.length}
+                  onClick={() =>
+                    downloadTasksExcel(
+                      drilldownTasks,
+                      `summary-${drilldownCategory}_${from}_${to}`
+                    )
+                  }
+                  className={btnSecondary}
+                >
+                  Download Excel
+                </button>
+                <button type="button" onClick={closeDrilldown} className={btnSecondary}>
+                  Close
+                </button>
+              </div>
             </div>
             <div className="p-5 overflow-y-auto flex-1 min-h-0">
               {drilldownLoading && (

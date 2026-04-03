@@ -3,6 +3,7 @@ import { formatInr } from '../utils/currency';
 import { getStatusBadge, formatApprovalStatusLabel } from '../utils/taskDisplay';
 import { useNavigate } from 'react-router-dom';
 import { getTasks, submitTask, getProfile, updateProfile } from '../services/api';
+import { downloadTasksExcel } from '../utils/exportExcel';
 
 const formatDueDate = (deadline) => {
   const diff = Math.ceil((new Date(deadline) - new Date()) / 86400000);
@@ -188,8 +189,18 @@ const UserDashboard = ({ user, onLogout }) => {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         <div className="bg-white rounded-xl shadow-card border border-slate-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-200">
+          <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <h2 className="text-lg font-semibold text-slate-800">My Tasks</h2>
+            <button
+              type="button"
+              disabled={!filteredTasks.length}
+              onClick={() =>
+                downloadTasksExcel(filteredTasks, `my-tasks-${statusFilter.toLowerCase()}`)
+              }
+              className={btnSecondary}
+            >
+              Download Excel
+            </button>
           </div>
 
           {/* Status filter chips */}

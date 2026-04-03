@@ -6,6 +6,12 @@ import {
   getTask, getUsers, updateTask, deleteTask, approveTask, rejectTask, submitTask,
   uploadTaskAttachment, deleteAttachment, createTaskUpdate
 } from '../services/api';
+import {
+  downloadAoAAsExcel,
+  attachmentsToAoA,
+  taskUpdatesToAoA,
+  taskEventsToAoA
+} from '../utils/exportExcel';
 
 const TaskDetailPage = ({ user }) => {
   const { id } = useParams();
@@ -596,11 +602,25 @@ const TaskDetailPage = ({ user }) => {
 
         {/* Attachments */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-card p-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
             <h2 className="text-base font-semibold text-slate-800">Attachments</h2>
-            <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={!attachments.length}
+                onClick={() =>
+                  downloadAoAAsExcel(
+                    attachmentsToAoA(attachments),
+                    `task-${id}-attachments`,
+                    'Attachments'
+                  )
+                }
+                className={btnSecondary}
+              >
+                Download Excel
+              </button>
               <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-              <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className={btnPrimary}>
+              <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading} className={btnPrimary}>
                 {uploading ? 'Uploading...' : 'Upload File'}
               </button>
             </div>
@@ -639,7 +659,23 @@ const TaskDetailPage = ({ user }) => {
 
         {/* Status Updates */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-card p-6">
-          <h2 className="text-base font-semibold text-slate-800 mb-4">Status Updates</h2>
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+            <h2 className="text-base font-semibold text-slate-800">Status Updates</h2>
+            <button
+              type="button"
+              disabled={!updates.length}
+              onClick={() =>
+                downloadAoAAsExcel(
+                  taskUpdatesToAoA(updates),
+                  `task-${id}-status-updates`,
+                  'Updates'
+                )
+              }
+              className={btnSecondary}
+            >
+              Download Excel
+            </button>
+          </div>
           {updates.length === 0 ? (
             <p className="text-sm text-slate-500">No updates yet.</p>
           ) : (
@@ -687,7 +723,23 @@ const TaskDetailPage = ({ user }) => {
 
         {/* Activity History */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-card p-6">
-          <h2 className="text-base font-semibold text-slate-800 mb-4">Activity History</h2>
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+            <h2 className="text-base font-semibold text-slate-800">Activity History</h2>
+            <button
+              type="button"
+              disabled={!history.length}
+              onClick={() =>
+                downloadAoAAsExcel(
+                  taskEventsToAoA(history),
+                  `task-${id}-activity-history`,
+                  'Activity'
+                )
+              }
+              className={btnSecondary}
+            >
+              Download Excel
+            </button>
+          </div>
           {history.length === 0 ? (
             <p className="text-xs text-slate-500">No activity recorded yet.</p>
           ) : (

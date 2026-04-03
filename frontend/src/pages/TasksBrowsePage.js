@@ -7,6 +7,7 @@ import {
   formatDueDate,
   dueDateColor
 } from '../utils/taskDisplay';
+import { downloadTasksExcel } from '../utils/exportExcel';
 
 const PAGE_SIZE = 5;
 
@@ -93,6 +94,17 @@ const TasksBrowsePage = ({ user, onLogout }) => {
               <h1 className="text-xl font-semibold text-slate-800">Tasks</h1>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
+              <button
+                type="button"
+                disabled={!filtered.length}
+                onClick={() => {
+                  const q = search.trim().replace(/\s+/g, '-').slice(0, 40) || 'all';
+                  downloadTasksExcel(filtered, `tasks-browse-${q}`);
+                }}
+                className={btnSecondary}
+              >
+                Download Excel
+              </button>
               <span className="text-sm text-slate-600">{user.email}</span>
               <button type="button" onClick={onLogout} className={btnSecondary}>
                 Logout

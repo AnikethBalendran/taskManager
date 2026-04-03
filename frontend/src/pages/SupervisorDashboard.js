@@ -3,6 +3,7 @@ import { formatInr } from '../utils/currency';
 import { formatDueDate, dueDateColor, getStatusBadge } from '../utils/taskDisplay';
 import { useNavigate } from 'react-router-dom';
 import { createTask, getTasks, deleteTask, approveTask, rejectTask, getUsers, getProfile, updateProfile, uploadTaskAttachment } from '../services/api';
+import { downloadTasksExcel } from '../utils/exportExcel';
 
 const SupervisorDashboard = ({ user, onLogout }) => {
   const navigate = useNavigate();
@@ -332,9 +333,24 @@ const SupervisorDashboard = ({ user, onLogout }) => {
         </div>
 
         <div className="bg-white rounded-xl shadow-card border border-slate-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-200">
-            <h2 className="text-lg font-semibold text-slate-800">Tasks assigned to you</h2>
-            <p className="text-sm text-slate-500 mt-1">Work assigned to you by an admin or that you picked up as assignee.</p>
+          <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-800">Tasks assigned to you</h2>
+              <p className="text-sm text-slate-500 mt-1">Work assigned to you by an admin or that you picked up as assignee.</p>
+            </div>
+            <button
+              type="button"
+              disabled={!assignedToMeTasks.length}
+              onClick={() =>
+                downloadTasksExcel(
+                  assignedToMeTasks,
+                  `supervisor-assigned-to-me-${statusFilter.toLowerCase()}`
+                )
+              }
+              className={btnSecondary}
+            >
+              Download Excel
+            </button>
           </div>
           <div className="px-6 py-3 border-b border-slate-100 flex gap-2 flex-wrap">
             {['ALL', 'PENDING', 'IN_PROGRESS', 'COMPLETED'].map(s => (
@@ -436,9 +452,21 @@ const SupervisorDashboard = ({ user, onLogout }) => {
         </div>
 
         <div className="bg-white rounded-xl shadow-card border border-slate-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-200">
-            <h2 className="text-lg font-semibold text-slate-800">All tasks</h2>
-            <p className="text-sm text-slate-500 mt-1">Every task you create or that involves you (same filters as above).</p>
+          <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-800">All tasks</h2>
+              <p className="text-sm text-slate-500 mt-1">Every task you create or that involves you (same filters as above).</p>
+            </div>
+            <button
+              type="button"
+              disabled={!filteredTasks.length}
+              onClick={() =>
+                downloadTasksExcel(filteredTasks, `supervisor-all-tasks-${statusFilter.toLowerCase()}`)
+              }
+              className={btnSecondary}
+            >
+              Download Excel
+            </button>
           </div>
           <div className="px-6 py-3 border-b border-slate-100 flex gap-2 flex-wrap">
             {['ALL', 'PENDING', 'IN_PROGRESS', 'COMPLETED'].map(s => (

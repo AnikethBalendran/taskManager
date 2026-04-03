@@ -15,6 +15,7 @@ import {
 import AdminManageHeader from '../components/AdminManageHeader';
 import AdminProfileModal from '../components/AdminProfileModal';
 import { formatDueDate, dueDateColor, getStatusBadge } from '../utils/taskDisplay';
+import { downloadTasksExcel, downloadUsersExcel } from '../utils/exportExcel';
 
 const AdminUsersPage = ({ user, onLogout }) => {
   const navigate = useNavigate();
@@ -233,14 +234,24 @@ const AdminUsersPage = ({ user, onLogout }) => {
         )}
 
         <div className="bg-white rounded-xl shadow-card border border-slate-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 flex-wrap">
             <h2 className="text-lg font-semibold text-slate-800">Users</h2>
-            <button
-              onClick={() => { setShowCreateForm(!showCreateForm); }}
-              className={btnPrimary}
-            >
-              {showCreateForm ? 'Cancel' : 'Create User'}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={!users.length}
+                onClick={() => downloadUsersExcel(users, 'users')}
+                className={btnSecondary}
+              >
+                Download Excel
+              </button>
+              <button
+                onClick={() => { setShowCreateForm(!showCreateForm); }}
+                className={btnPrimary}
+              >
+                {showCreateForm ? 'Cancel' : 'Create User'}
+              </button>
+            </div>
           </div>
 
           {showCreateForm && (
@@ -355,11 +366,29 @@ const AdminUsersPage = ({ user, onLogout }) => {
 
         {selectedUserId && (
           <div className="bg-white rounded-xl shadow-card border border-slate-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 flex-wrap">
               <h2 className="text-lg font-semibold text-slate-800">
                 Active Tasks for {users.find(u => u.id === selectedUserId)?.email}
               </h2>
-              <button type="button" onClick={() => { setSelectedUserId(null); setUserTasks([]); }} className={btnSecondary}>Close</button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={!filteredUserTasks.length}
+                  onClick={() => {
+                    const slug = (users.find((u) => u.id === selectedUserId)?.email || 'user')
+                      .replace(/@/g, '-at-')
+                      .replace(/[^\w.-]+/g, '_');
+                    downloadTasksExcel(
+                      filteredUserTasks,
+                      `user-tasks-${slug}-${userTaskFilter.toLowerCase()}`
+                    );
+                  }}
+                  className={btnSecondary}
+                >
+                  Download Excel
+                </button>
+                <button type="button" onClick={() => { setSelectedUserId(null); setUserTasks([]); }} className={btnSecondary}>Close</button>
+              </div>
             </div>
 
             <div className="px-6 py-3 border-b border-slate-100 flex gap-2 flex-wrap">
