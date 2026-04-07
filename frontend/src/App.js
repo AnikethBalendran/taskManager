@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import AdminUsersPage from './pages/AdminUsersPage';
@@ -55,6 +56,7 @@ function App() {
 
   return (
     <Router>
+      <Analytics />
       <Routes>
         <Route
           path="/login"

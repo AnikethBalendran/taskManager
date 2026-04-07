@@ -4,6 +4,7 @@
   "description": "Role-Based Task Management System Frontend",
   "private": true,
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "axios": "^1.6.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
